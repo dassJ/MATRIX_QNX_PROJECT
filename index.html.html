@@ -1,0 +1,2648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>M.A.T.R.I.X. Motion Articulation & Telemetric Real-time Interface eXecutio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#020408;--bg1:#060c14;--bg2:#0a1220;--bg3:#0f1a2e;--bg4:#162240;
+  --blue:#0a84ff;--blue2:#0055cc;--cyan:#00d4ff;--cyan2:#007a99;
+  --green:#00ff88;--green2:#006633;--red:#ff2244;--red2:#880022;
+  --amber:#ffaa00;--amber2:#885500;--purple:#8844ff;
+  --fg:#c8deff;--fg2:#5a7aaa;--fg3:#2a3a5a;
+  --mono:'Share Tech Mono',monospace;--head:'Orbitron',sans-serif;
+}
+html,body{width:100%;height:100%;background:var(--bg0);color:var(--fg);font-family:var(--mono);overflow:hidden}
+
+/* ═══ LOADING SCREEN ═══ */
+#loading{position:fixed;inset:0;background:var(--bg0);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px}
+.load-title{font-family:var(--head);font-size:clamp(18px,3vw,38px);font-weight:900;color:var(--cyan);letter-spacing:.15em;text-align:center;line-height:1.3}
+.load-sub{font-size:13px;color:var(--fg2);letter-spacing:.2em;text-transform:uppercase}
+.robo-svg{width:160px;height:160px;overflow:visible;filter:drop-shadow(0 0 10px rgba(0,212,255,0.4))}
+.j1-anim{transform-origin:80px 140px;animation:swingJ1 3s ease-in-out infinite alternate}
+.j2-anim{transform-origin:80px 80px;animation:swingJ2 2.5s ease-in-out infinite alternate}
+.laser-scan{transform-origin:80px 40px;animation:scan 1.8s ease-in-out infinite alternate;opacity:0.6}
+@keyframes swingJ1{0%{transform:rotate(-25deg)}100%{transform:rotate(25deg)}}
+@keyframes swingJ2{0%{transform:rotate(35deg)}100%{transform:rotate(-35deg)}}
+@keyframes scan{0%{transform:rotate(-50deg)}100%{transform:rotate(50deg)}}
+.load-bar-wrap{width:300px;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.load-bar{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--cyan));border-radius:2px;transition:width .1s}
+.load-status{font-size:11px;color:var(--fg2);letter-spacing:.12em;min-height:16px}
+.load-grid{position:absolute;inset:0;pointer-events:none;overflow:hidden;opacity:.08}
+.load-grid::before,.load-grid::after{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--cyan) 1px,transparent 1px),linear-gradient(90deg,var(--cyan) 1px,transparent 1px);background-size:60px 60px}
+.load-grid::after{background-size:12px 12px;opacity:.5}
+.hex-anim{display:flex;gap:8px}
+.hex{width:14px;height:14px;background:var(--cyan);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);opacity:0;animation:hexPulse 1.4s ease-in-out infinite}
+.hex:nth-child(1){animation-delay:0s}.hex:nth-child(2){animation-delay:.2s}.hex:nth-child(3){animation-delay:.4s}.hex:nth-child(4){animation-delay:.6s}.hex:nth-child(5){animation-delay:.8s}.hex:nth-child(6){animation-delay:1.0s}.hex:nth-child(7){animation-delay:1.2s}
+@keyframes hexPulse{0%,100%{opacity:.1;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+.hud-ring{transform-origin:center;}
+.hud-ring.r1{animation:spin 12s linear infinite;}
+.hud-ring.r2{animation:spinRev 18s linear infinite;}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes spinRev{0%{transform:rotate(360deg)}100%{transform:rotate(0deg)}}
+
+/* ═══ UPLOAD SCREEN ═══ */
+#upload-screen{position:fixed;inset:0;background:var(--bg0);z-index:8888;display:none;flex-direction:column}
+.upload-header{height:60px;background:var(--bg1);border-bottom:1px solid var(--bg4);display:flex;align-items:center;padding:0 28px;gap:16px}
+.upload-header .logo{font-family:var(--head);font-size:16px;color:var(--cyan);letter-spacing:.15em}
+.upload-header .logo span{color:var(--fg2);font-size:11px;display:block;margin-top:2px;letter-spacing:.2em}
+.upload-body{flex:1;display:flex;gap:0;overflow:hidden}
+.upload-left{flex:1;padding:32px;overflow-y:auto;border-right:1px solid var(--bg4)}
+.upload-right{width:340px;padding:24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto}
+.section-label{font-size:10px;letter-spacing:.2em;color:var(--cyan);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--bg4)}
+.drop-zone{border:2px dashed var(--bg4);border-radius:8px;padding:40px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg1)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--cyan);background:var(--bg2)}
+.drop-zone .dz-icon{width:48px;height:48px;margin:0 auto 12px;opacity:.5}
+.drop-zone .dz-title{font-size:14px;color:var(--fg);margin-bottom:6px}
+.drop-zone .dz-sub{font-size:11px;color:var(--fg2)}
+.file-list{margin-top:20px;display:flex;flex-direction:column;gap:8px}
+.file-item{background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;padding:10px 14px;display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:12px}
+.file-item .fi-icon{width:32px;height:32px;background:var(--bg3);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--cyan)}
+.file-item .fi-name{font-size:12px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item .fi-size{font-size:10px;color:var(--fg2)}
+.qty-control{display:flex;align-items:center;gap:6px}
+.qty-btn{width:22px;height:22px;background:var(--bg3);border:1px solid var(--bg4);color:var(--cyan);cursor:pointer;border-radius:3px;font-size:13px;display:flex;align-items:center;justify-content:center;line-height:1;transition:.15s}
+.qty-btn:hover{background:var(--cyan);color:var(--bg0)}
+.qty-btn:active{transform:scale(0.9);background:var(--blue);color:white}
+.qty-val{width:28px;text-align:center;font-size:12px;color:var(--fg);background:none;border:none;outline:none;font-family:var(--mono)}
+.upload-right .model-preview{background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;overflow:hidden;flex:1;min-height:200px;position:relative;display:flex;align-items:center;justify-content:center}
+.model-preview .preview-canvas{width:100%;height:100%}
+.preview-label{position:absolute;bottom:8px;left:8px;font-size:10px;color:var(--fg2)}
+.upload-footer{padding:16px 28px;background:var(--bg1);border-top:1px solid var(--bg4);display:flex;justify-content:space-between;align-items:center}
+.upload-summary{font-size:11px;color:var(--fg2)}
+.upload-summary strong{color:var(--cyan)}
+.btn-launch{font-family:var(--head);background:var(--blue2);color:white;border:1px solid var(--blue);padding:12px 32px;border-radius:6px;cursor:pointer;letter-spacing:.12em;font-size:12px;transition:.2s}
+.btn-launch:hover{background:var(--blue);box-shadow:0 0 20px rgba(10,132,255,.4)}
+.btn-launch:active{transform:scale(0.96);box-shadow:0 0 30px rgba(10,132,255,.8)}
+.btn-launch:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ═══ MAIN DASHBOARD ═══ */
+#main{position:fixed;inset:0;display:none;flex-direction:column}
+/* Top bar */
+#topbar{height:50px;background:var(--bg1);border-bottom:1px solid var(--bg4);display:flex;align-items:center;padding:0 16px;gap:14px;z-index:10;flex-shrink:0}
+.tb-logo{font-family:var(--head);font-size:14px;color:var(--cyan);letter-spacing:.12em;white-space:nowrap}
+.tb-logo small{font-size:9px;color:var(--fg2);display:block;letter-spacing:.18em}
+.tb-sep{width:1px;height:28px;background:var(--bg4)}
+.tb-badge{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--bg4);border-radius:4px;padding:4px 10px;white-space:nowrap}
+.tb-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--red)}
+.tb-badge .dot.on{background:var(--green)}
+.tb-badge .dot.warn{background:var(--amber)}
+.tb-badge label{font-size:9px;color:var(--fg2);letter-spacing:.1em;display:block}
+.tb-badge span{font-size:11px;color:var(--fg)}
+.tb-spacer{flex:1}
+.tb-btn{background:var(--bg3);border:1px solid var(--bg4);color:var(--fg2);padding:5px 12px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:11px;transition:.15s;white-space:nowrap}
+.tb-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.tb-btn:active{transform:scale(0.92);background:var(--cyan);color:var(--bg0)}
+.tb-btn.edit-active{background:var(--amber2);border-color:var(--amber);color:var(--amber)}
+.tb-btn.edit-active:active{background:var(--amber);color:var(--bg0)}
+.tb-btn.danger{border-color:var(--red);color:var(--red)}
+.tb-btn.danger:hover{background:var(--red);color:white}
+.tb-btn.danger:active{background:var(--red2)}
+
+/* Content area */
+#content{flex:1;display:flex;overflow:hidden}
+/* Left panel */
+#panel-left{width:270px;background:var(--bg1);border-right:1px solid var(--bg4);overflow-y:auto;flex-shrink:0;padding:8px 0;transition:margin-left .4s cubic-bezier(0.16, 1, 0.3, 1)}
+#panel-left.hidden{margin-left:-270px}
+#panel-left::-webkit-scrollbar{width:3px}
+#panel-left::-webkit-scrollbar-thumb{background:var(--bg4)}
+/* Canvas */
+#viewport{flex:1;position:relative;overflow:hidden}
+#three-canvas{display:block;width:100%;height:100%}
+/* Right panel */
+#panel-right{width:260px;background:var(--bg1);border-left:1px solid var(--bg4);overflow-y:auto;flex-shrink:0;padding:8px 0;transition:margin-right .4s cubic-bezier(0.16, 1, 0.3, 1)}
+#panel-right.hidden{margin-right:-260px}
+#panel-right::-webkit-scrollbar{width:3px}
+#panel-right::-webkit-scrollbar-thumb{background:var(--bg4)}
+
+/* ═══ PANEL COMPONENTS ═══ */
+.p-section{padding:0 12px 14px}
+.p-head{font-size:9px;letter-spacing:.18em;color:var(--cyan);padding:8px 12px 6px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--bg3)}
+.p-head::before{content:'';width:3px;height:12px;background:var(--cyan);border-radius:2px}
+/* Sliders */
+.joint-block{margin-bottom:10px}
+.joint-hdr{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.j-tag{font-size:9px;font-weight:bold;padding:2px 6px;border-radius:2px;letter-spacing:.06em;white-space:nowrap}
+.j-name{font-size:11px;color:var(--fg);flex:1}
+.j-val{font-size:12px;font-family:var(--head);min-width:52px;text-align:right}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--bg4);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--blue);cursor:pointer;border:2px solid var(--cyan);transition:.1s}
+input[type=range]:hover::-webkit-slider-thumb{background:var(--cyan);transform:scale(1.2)}
+input[type=range]:disabled{opacity:.3;pointer-events:none}
+/* Buttons */
+.btn-row{display:flex;gap:5px;margin-top:8px}
+.btn{flex:1;padding:7px 4px;border:1px solid var(--bg4);border-radius:3px;background:var(--bg3);color:var(--fg2);font-family:var(--mono);font-size:10px;cursor:pointer;transition:.15s;text-align:center;line-height:1.2}
+.btn:hover{border-color:var(--blue);color:var(--cyan)}
+.btn:active{transform:scale(0.92);background:var(--bg4)}
+.btn.active{background:var(--blue2);border-color:var(--blue);color:white}
+.btn.danger{border-color:var(--red2);color:var(--red)}
+.btn.danger:hover{background:var(--red);color:white;border-color:var(--red)}
+.btn.danger:active{background:var(--red2)}
+.btn.success{border-color:var(--green2);color:var(--green)}
+.btn.success:hover{background:var(--green2);color:white}
+.btn.success:active{background:var(--green)}
+.btn.warn{border-color:var(--amber2);color:var(--amber)}
+.btn.warn:hover{background:var(--amber2);color:white}
+.btn.warn:active{background:var(--amber)}
+.btn.primary{background:var(--blue2);border-color:var(--blue);color:white}
+.btn.primary:hover{background:var(--blue)}
+.btn.primary:active{background:var(--blue)}
+/* LED row */
+.led-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px}
+.led-cell{background:var(--bg3);border:1px solid var(--bg4);border-radius:4px;padding:8px 6px;text-align:center}
+.led-dot{width:12px;height:12px;border-radius:50%;margin:0 auto 4px;transition:.3s}
+.led-off-g{background:#0a2a12}.led-off-r{background:#2a0a0a}.led-off-a{background:#2a1800}.led-off-c{background:#0a1a2a}
+.led-on-g{background:var(--green);box-shadow:0 0 10px var(--green)}.led-on-r{background:var(--red);box-shadow:0 0 10px var(--red)}.led-on-a{background:var(--amber);box-shadow:0 0 10px var(--amber)}.led-on-c{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.led-lbl{font-size:8px;color:var(--fg2);letter-spacing:.08em}
+/* Tele cells */
+.tele-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.tele-cell{background:var(--bg3);border:1px solid var(--bg4);border-radius:4px;padding:7px;text-align:center}
+.tele-val{font-family:var(--head);font-size:18px;line-height:1}
+.tele-key{font-size:8px;color:var(--fg2);letter-spacing:.1em;margin-top:3px}
+/* Mode buttons */
+.mode-row{display:flex;gap:5px;margin-bottom:8px}
+.mode-btn{flex:1;padding:9px 4px;border-radius:4px;border:1px solid var(--bg4);background:var(--bg3);color:var(--fg2);font-family:var(--head);font-size:9px;letter-spacing:.06em;cursor:pointer;transition:.2s;text-align:center}
+.mode-btn:active{transform:scale(0.93)}
+.mode-btn.active-rtos{background:#0a2a12;border-color:var(--green);color:var(--green)}
+.mode-btn.active-nonrtos{background:#2a1800;border-color:var(--amber);color:var(--amber)}
+.mode-btn.active-manual{background:#0a1a2a;border-color:var(--cyan);color:var(--cyan)}
+.mode-desc{font-size:10px;color:var(--fg2);line-height:1.6;padding:6px 8px;background:var(--bg3);border-radius:3px;border:1px solid var(--bg4);margin-bottom:8px}
+/* Sequence list */
+#seq-list{max-height:130px;overflow-y:auto;border:1px solid var(--bg4);border-radius:3px;margin-top:6px}
+#seq-list::-webkit-scrollbar{width:3px}
+#seq-list::-webkit-scrollbar-thumb{background:var(--bg4)}
+.seq-item{padding:5px 10px;font-size:10px;color:var(--fg2);border-bottom:1px solid var(--bg3);cursor:pointer;display:flex;align-items:center;gap:6px}
+.seq-item:hover{background:var(--bg3);color:var(--cyan)}
+.seq-item.playing{background:var(--blue2);color:white}
+.seq-num{font-family:var(--head);font-size:9px;color:var(--fg3);min-width:24px}
+/* Log */
+#log-box{max-height:100px;overflow-y:auto;font-size:9px;line-height:1.7;color:var(--fg2)}
+#log-box::-webkit-scrollbar{width:3px}
+#log-box::-webkit-scrollbar-thumb{background:var(--bg4)}
+.log-ok{color:var(--green)}.log-err{color:var(--red)}.log-warn{color:var(--amber)}.log-info{color:var(--cyan)}
+
+/* Canvas overlays */
+.canvas-overlay{position:absolute;pointer-events:none;font-family:var(--mono)}
+#angle-strip{bottom:10px;left:50%;transform:translateX(-50%);background:rgba(2,4,8,.8);border:1px solid var(--bg4);padding:5px 16px;font-size:10px;color:var(--cyan);letter-spacing:.06em;border-radius:4px;white-space:nowrap}
+#mode-strip{top:10px;left:50%;transform:translateX(-50%);background:rgba(2,4,8,.8);border:1px solid var(--bg4);padding:4px 14px;font-size:10px;letter-spacing:.1em;border-radius:4px}
+#edit-strip{top:12px;right:12px;background:rgba(10,18,32,.9);border:1px solid var(--amber);padding:10px;font-size:11px;color:var(--amber);border-radius:6px;display:none;flex-direction:column;gap:8px;z-index:20;box-shadow:0 4px 15px rgba(0,0,0,0.5)}
+.edit-tools{display:flex;gap:6px;}
+#emerg-overlay{position:absolute;inset:0;background:rgba(200,0,0,.15);border:3px solid var(--red);display:none;align-items:center;justify-content:center;pointer-events:none}
+#emerg-overlay.show{display:flex}
+.emerg-text{font-family:var(--head);font-size:clamp(20px,4vw,48px);color:var(--red);letter-spacing:.15em;animation:blink .6s step-start infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* Notification toast */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--cyan);border-radius:6px;padding:10px 18px;font-size:11px;color:var(--cyan);z-index:9000;opacity:0;transform:translateY(10px);transition:.3s;pointer-events:none;max-width:320px}
+#toast.show{opacity:1;transform:translateY(0)}
+
+/* ═══ SAVE INDICATOR ═══ */
+#save-indicator{position:fixed;top:58px;left:50%;transform:translateX(-50%) translateY(-10px);background:rgba(0,40,20,.95);border:1px solid var(--green);border-radius:20px;padding:5px 18px;font-size:11px;color:var(--green);z-index:9500;opacity:0;transition:all .3s ease;pointer-events:none;letter-spacing:.1em;box-shadow:0 0 12px rgba(0,255,136,.3)}
+#save-indicator.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ═══ PROJECT HUB ═══ */
+#project-hub{position:fixed;inset:0;background:var(--bg0);z-index:8999;display:none;flex-direction:column}
+.hub-header{height:64px;background:var(--bg1);border-bottom:1px solid var(--bg4);display:flex;align-items:center;padding:0 32px;gap:16px}
+.hub-logo{font-family:var(--head);font-size:18px;color:var(--cyan);letter-spacing:.15em}
+.hub-logo small{font-size:10px;color:var(--fg2);display:block;letter-spacing:.2em;margin-top:2px}
+.hub-body{flex:1;display:flex;overflow:hidden}
+.hub-left{width:260px;background:var(--bg1);border-right:1px solid var(--bg4);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:24px}
+.hub-arm-wrap{opacity:.7}
+.hub-right{flex:1;padding:40px;overflow-y:auto}
+.hub-section-title{font-size:10px;letter-spacing:.22em;color:var(--cyan);margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.hub-section-title::after{content:'';flex:1;height:1px;background:var(--bg4)}
+.hub-empty{color:var(--fg3);font-size:13px;letter-spacing:.1em;text-align:center;padding:60px 0}
+.hub-empty span{font-size:32px;display:block;margin-bottom:12px;opacity:.4}
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.proj-card{background:var(--bg2);border:1px solid var(--bg4);border-radius:8px;padding:18px;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.proj-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),var(--cyan));opacity:0;transition:.2s}
+.proj-card:hover{border-color:var(--cyan);background:var(--bg3)}
+.proj-card:hover::before{opacity:1}
+.proj-card-name{font-family:var(--head);font-size:13px;color:var(--fg);margin-bottom:8px;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-card-meta{font-size:10px;color:var(--fg2);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.proj-card-badge{background:var(--bg3);border:1px solid var(--bg4);border-radius:3px;padding:2px 7px;color:var(--cyan);font-size:9px}
+.proj-card-actions{display:flex;gap:6px}
+.hub-new-btn{font-family:var(--head);background:var(--blue2);color:white;border:1px solid var(--blue);padding:12px 28px;border-radius:6px;cursor:pointer;letter-spacing:.12em;font-size:12px;transition:.2s;width:100%;text-align:center}
+.hub-new-btn:hover{background:var(--blue);box-shadow:0 0 20px rgba(10,132,255,.4)}
+.hub-new-btn:active{transform:scale(0.96)}
+
+/* ═══ NEW PROJECT DIALOG ═══ */
+#proj-dialog{position:fixed;inset:0;background:rgba(2,4,8,.85);backdrop-filter:blur(6px);z-index:9800;display:none;align-items:center;justify-content:center}
+.dialog-box{background:var(--bg2);border:1px solid var(--bg4);border-radius:10px;padding:32px;width:400px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.dialog-title{font-family:var(--head);font-size:14px;color:var(--cyan);letter-spacing:.12em;margin-bottom:8px}
+.dialog-sub{font-size:11px;color:var(--fg2);margin-bottom:24px}
+.dialog-input{width:100%;background:var(--bg3);border:1px solid var(--bg4);border-radius:5px;padding:10px 14px;font-family:var(--mono);font-size:13px;color:var(--fg);outline:none;transition:.2s;margin-bottom:20px}
+.dialog-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,.1)}
+.dialog-actions{display:flex;gap:10px;justify-content:flex-end}
+.dialog-cancel{background:none;border:1px solid var(--bg4);color:var(--fg2);padding:9px 20px;border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:11px;transition:.15s}
+.dialog-cancel:hover{border-color:var(--fg2)}
+.dialog-create{font-family:var(--head);background:var(--blue2);color:white;border:1px solid var(--blue);padding:9px 20px;border-radius:5px;cursor:pointer;font-size:11px;letter-spacing:.08em;transition:.2s}
+.dialog-create:hover{background:var(--blue)}
+.dialog-create:active{transform:scale(0.95)}
+.edit-hide{display:block !important}
+body.edit-mode .edit-hide{display:none !important}
+
+/* ═══ EDIT LEFT PANEL ═══ */
+#edit-panel-left{width:280px;background:var(--bg1);border-right:1px solid var(--bg4);overflow-y:auto;flex-shrink:0;padding:8px 0;display:none}
+#edit-panel-left::-webkit-scrollbar{width:3px}
+#edit-panel-left::-webkit-scrollbar-thumb{background:var(--bg4)}
+.jce-toggle{width:100%;padding:9px 12px;border:2px solid var(--amber);background:var(--bg2);color:var(--amber);font-family:var(--head);font-size:10px;cursor:pointer;border-radius:5px;letter-spacing:.1em;transition:.2s;text-align:center}
+.jce-toggle.active{background:rgba(136,85,0,.35);color:#ffd080;box-shadow:0 0 14px rgba(255,170,0,.3)}
+.calib-menu{margin-top:10px;padding:10px;background:var(--bg2);border:1px solid var(--bg4);border-radius:5px;display:none}
+.calib-menu.visible{display:block}
+.calib-part-name{font-size:10px;color:var(--fg2);letter-spacing:.1em;margin-bottom:10px;padding:4px 6px;background:var(--bg3);border-radius:3px;border:1px solid var(--bg4)}
+.calib-part-name span{color:var(--amber);font-size:11px;display:block;margin-top:2px}
+.calib-pose-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px}
+.cpb{padding:9px 4px;border:1px solid var(--bg4);border-radius:4px;background:var(--bg3);color:var(--fg2);font-family:var(--mono);font-size:10px;cursor:pointer;transition:.15s;text-align:center;line-height:1.4}
+.cpb:hover{border-color:var(--cyan);color:var(--cyan)}
+.cpb.q0-set{border-color:#4d9fff;color:#4d9fff;background:rgba(10,132,255,.1)}
+.cpb.q90-set{border-color:#00d4ff;color:#00d4ff;background:rgba(0,212,255,.1)}
+.cpb.q180-set{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.1)}
+.test-calib-wrap{margin-top:6px}
+.test-calib-lbl{font-size:9px;color:var(--fg2);letter-spacing:.1em;margin-bottom:5px}
+
+/* ═══ COORD INPUTS (Right Panel Edit Mode) ═══ */
+#edit-coord-section{display:none;padding:0 12px 10px}
+.coord-group{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.coord-lbl{font-size:11px;font-weight:bold;min-width:14px;text-align:center}
+.coord-inp{background:var(--bg3);border:1px solid;border-radius:3px;flex:1;font-family:var(--mono);font-size:11px;padding:4px 6px;outline:none;transition:.2s;width:0}
+.cx{color:#ff5555;border-color:#441111}.cx:focus{border-color:#ff5555;box-shadow:0 0 0 2px rgba(255,85,85,.15)}
+.cy{color:#55ff55;border-color:#114411}.cy:focus{border-color:#55ff55;box-shadow:0 0 0 2px rgba(85,255,85,.15)}
+.cz{color:#5588ff;border-color:#112244}.cz:focus{border-color:#5588ff;box-shadow:0 0 0 2px rgba(85,136,255,.15)}
+
+/* ═══ AXIS ANGLE OVERLAY ═══ */
+#axis-angle-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5}
+.aal{position:absolute;font-family:var(--mono);font-size:10px;font-weight:bold;padding:2px 6px;border-radius:3px;background:rgba(2,4,8,.8);transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;border:1px solid}
+.aal-x{color:#ff5555;border-color:#441111}
+.aal-y{color:#55ff55;border-color:#114411}
+.aal-z{color:#5588ff;border-color:#112244}
+
+/* ═══ RENAME DIALOG & BUTTON ═══ */
+#rename-dialog{position:fixed;inset:0;background:rgba(2,4,8,.85);backdrop-filter:blur(6px);z-index:9810;display:none;align-items:center;justify-content:center}
+.proj-card-name-wrap{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.proj-rename-btn{background:none;border:1px solid var(--blue2);color:var(--blue);font-size:9px;padding:2px 7px;border-radius:3px;cursor:pointer;font-family:var(--mono);transition:.15s;flex-shrink:0}
+.proj-rename-btn:hover{background:var(--blue);color:white;border-color:var(--blue)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ LOADING SCREEN -->
+<div id="loading">
+  <div class="load-grid"></div>
+  
+  <div style="position:relative; width:280px; height:280px; display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
+    <!-- Spinning HUD Rings -->
+    <svg class="hud-ring r1" viewBox="0 0 200 200" style="position:absolute; width:280px; height:280px;">
+      <circle cx="100" cy="100" r="90" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="10 4 2 4 20 10"/>
+      <circle cx="100" cy="100" r="85" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-dasharray="40 20 10 30" opacity="0.6"/>
+    </svg>
+    <svg class="hud-ring r2" viewBox="0 0 200 200" style="position:absolute; width:240px; height:240px;">
+      <circle cx="100" cy="100" r="90" fill="none" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="5 15 30 10" opacity="0.5"/>
+    </svg>
+
+    <!-- Core Robot SVG -->
+    <svg class="robo-svg" viewBox="0 0 160 160" style="width:200px; height:200px; position:absolute;">
+      <!-- Stand -->
+      <path d="M50,150 L110,150 L100,140 L60,140 Z" fill="#060c14" stroke="#00d4ff" stroke-width="2"/>
+      <line x1="80" y1="140" x2="80" y2="150" stroke="#00d4ff" stroke-width="2"/>
+      
+      <g class="j1-anim">
+        <!-- Base joint circle -->
+        <circle cx="80" cy="140" r="14" fill="#0f1a2e" stroke="#0a84ff" stroke-width="2"/>
+        <circle cx="80" cy="140" r="6" fill="#00d4ff"/>
+        <!-- Lower Arm -->
+        <path d="M70,140 L90,140 L85,80 L75,80 Z" fill="#162240" stroke="#00d4ff" stroke-width="1.5"/>
+        <line x1="75" y1="110" x2="85" y2="110" stroke="#0a84ff" stroke-width="1"/>
+        <line x1="77" y1="95" x2="83" y2="95" stroke="#0a84ff" stroke-width="1"/>
+        
+        <g class="j2-anim">
+          <!-- Elbow joint circle -->
+          <circle cx="80" cy="80" r="12" fill="#0f1a2e" stroke="#0a84ff" stroke-width="2"/>
+          <circle cx="80" cy="80" r="5" fill="#00ff88"/>
+          <!-- Upper Arm -->
+          <path d="M72,80 L88,80 L84,30 L76,30 Z" fill="#162240" stroke="#00d4ff" stroke-width="1.5"/>
+          <line x1="76" y1="60" x2="84" y2="60" stroke="#0a84ff" stroke-width="1"/>
+          <line x1="78" y1="45" x2="82" y2="45" stroke="#0a84ff" stroke-width="1"/>
+          
+          <!-- Wrist / End effector -->
+          <circle cx="80" cy="30" r="8" fill="#0f1a2e" stroke="#00d4ff" stroke-width="2"/>
+          <circle cx="80" cy="30" r="3" fill="#ffaa00"/>
+          <path d="M75,25 L75,15 L70,15" fill="none" stroke="#00d4ff" stroke-width="2"/>
+          <path d="M85,25 L85,15 L90,15" fill="none" stroke="#00d4ff" stroke-width="2"/>
+          
+          <!-- Scanner Laser -->
+          <g class="laser-scan">
+            <path d="M80,30 L50,-10 L110,-10 Z" fill="url(#laserGrad)" opacity="0.9"/>
+          </g>
+        </g>
+      </g>
+      <defs>
+        <linearGradient id="laserGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+          <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <div class="load-title">M.A.T.R.I.X<br><span style="font-size:.45em;letter-spacing:.35em;color:var(--fg2)">Motion Articulation & Telemetric Real-time Interface eXecution</span></div>
+  
+  <div class="hex-anim" style="margin-top:10px;"><div class="hex"></div><div class="hex"></div><div class="hex"></div><div class="hex"></div><div class="hex"></div><div class="hex"></div><div class="hex"></div></div>
+  
+  <div class="load-bar-wrap" style="margin-top:5px;"><div class="load-bar" id="load-bar"></div></div>
+  <div class="load-status" id="load-status">Initializing systems…</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ SAVE INDICATOR -->
+<div id="save-indicator">✔ AUTO-SAVED</div>
+
+<!-- ═══════════════════════════════════════════ PROJECT HUB -->
+<div id="project-hub">
+  <div class="hub-header">
+    <div class="hub-logo">M.A.T.R.I.X.<small>PROJECT HUB</small></div>
+    <div style="margin-left:auto;font-size:11px;color:var(--fg2)" id="hub-db-status">◉ MEMORY ONLINE</div>
+  </div>
+  <div class="hub-body">
+    <div class="hub-left">
+      <svg class="hub-arm-wrap" width="110" height="120" viewBox="0 0 160 160">
+        <path d="M50,150 L110,150 L100,140 L60,140 Z" fill="#060c14" stroke="#00d4ff" stroke-width="2"/>
+        <g style="transform-origin:80px 140px;animation:swingJ1 3s ease-in-out infinite alternate">
+          <circle cx="80" cy="140" r="10" fill="#0f1a2e" stroke="#0a84ff" stroke-width="2"/>
+          <circle cx="80" cy="140" r="4" fill="#00d4ff"/>
+          <path d="M74,140 L86,140 L83,90 L77,90 Z" fill="#162240" stroke="#00d4ff" stroke-width="1.5"/>
+          <g style="transform-origin:80px 90px;animation:swingJ2 2.5s ease-in-out infinite alternate">
+            <circle cx="80" cy="90" r="8" fill="#0f1a2e" stroke="#0a84ff" stroke-width="2"/>
+            <circle cx="80" cy="90" r="3" fill="#00ff88"/>
+            <path d="M75,90 L85,90 L83,55 L77,55 Z" fill="#162240" stroke="#00d4ff" stroke-width="1.5"/>
+            <circle cx="80" cy="55" r="5" fill="#00d4ff"/>
+          </g>
+        </g>
+      </svg>
+      <div style="font-size:10px;color:var(--fg2);text-align:center;line-height:1.8">
+        <div style="color:var(--cyan);font-family:var(--head);font-size:11px;margin-bottom:8px;letter-spacing:.1em">M.A.T.R.I.X.</div>
+        Projects saved in<br>your browser's local<br>database (IndexedDB)
+      </div>
+      <button class="hub-new-btn" onclick="openNewProjectDialog()">＋ NEW PROJECT</button>
+    </div>
+    <div class="hub-right">
+      <div class="hub-section-title">RECENT PROJECTS</div>
+      <div id="proj-grid" class="proj-grid">
+        <div class="hub-empty"><span>🤖</span>No projects yet.<br>Click "+ New Project" to begin.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ NEW PROJECT DIALOG -->
+<div id="proj-dialog">
+  <div class="dialog-box">
+    <div class="dialog-title">＋ NEW PROJECT</div>
+    <div class="dialog-sub">Enter a name for your robotic arm project. Your models, positions, and sequences will be saved automatically.</div>
+    <input class="dialog-input" id="proj-name-input" type="text" placeholder="e.g. Robotic Arm v1" maxlength="40"
+      onkeydown="if(event.key==='Enter') createProject()"/>
+    <div class="dialog-actions">
+      <button class="dialog-cancel" onclick="closeDialog()">CANCEL</button>
+      <button class="dialog-create" onclick="createProject()">CREATE →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ RENAME DIALOG -->
+<div id="rename-dialog">
+  <div class="dialog-box">
+    <div class="dialog-title">✏ RENAME PROJECT</div>
+    <div class="dialog-sub">Enter a new name for this project.</div>
+    <input class="dialog-input" id="rename-input" type="text" placeholder="New project name" maxlength="40"
+      onkeydown="if(event.key==='Enter') confirmRename()"/>
+    <div class="dialog-actions">
+      <button class="dialog-cancel" onclick="closeRenameDialog()">CANCEL</button>
+      <button class="dialog-create" onclick="confirmRename()">RENAME →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ UPLOAD SCREEN -->
+<div id="upload-screen">
+  <div class="upload-header">
+    <button class="tb-btn" onclick="showProjectHub()" style="margin-right:16px;">◀ BACK TO HUB</button>
+    <div class="logo">M.A.T.R.I.X.<span>MOTION ARTICULATION &amp; TELEMETRIC REAL-TIME INTERFACE eXECUTION</span></div>
+    <div style="font-size:11px;color:var(--fg2);margin-left:auto">STEP 01 — LOAD 3D MODELS</div>
+  </div>
+  <div class="upload-body">
+    <div class="upload-left">
+      <div class="section-label">Upload .OBJ model files</div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()" ondragover="dzDrag(event,true)" ondragleave="dzDrag(event,false)" ondrop="dzDrop(event)">
+        <svg class="dz-icon" viewBox="0 0 48 48" fill="none" stroke="#00d4ff" stroke-width="2">
+          <rect x="4" y="12" width="40" height="30" rx="3"/><path d="M16 12V8a4 4 0 014-4h8a4 4 0 014 4v4"/><path d="M24 20v12M18 26l6-6 6 6"/>
+        </svg>
+        <div class="dz-title">Drop .OBJ or .STL files here</div>
+        <div class="dz-sub">or click to browse — Base, Arm, Gripper, Gears…</div>
+      </div>
+      <input type="file" id="file-input" accept=".obj,.stl" multiple style="display:none" onchange="handleFiles(this.files)"/>
+      <div class="file-list" id="file-list"></div>
+    </div>
+    <div class="upload-right">
+      <div class="section-label" style="font-size:9px">Preview</div>
+      <div class="model-preview">
+        <canvas id="preview-canvas" class="preview-canvas"></canvas>
+        <div class="preview-label" id="preview-label">No file selected</div>
+      </div>
+      <div style="padding:10px;background:var(--bg2);border:1px solid var(--bg4);border-radius:6px;font-size:10px;color:var(--fg2);line-height:1.7">
+        <div style="color:var(--cyan);margin-bottom:6px;font-size:9px;letter-spacing:.12em">ASSEMBLY MAP</div>
+        <div>Base.obj → <span style="color:var(--fg)">J0 Yaw</span></div>
+        <div>Waist.obj → <span style="color:var(--fg)">J1 Shoulder</span></div>
+        <div>Arm 01.obj → <span style="color:var(--fg)">J2 Elbow</span></div>
+        <div>Arm 02 v3.obj → <span style="color:var(--fg)">J3 Wrist</span></div>
+        <div>Arm 03.obj → <span style="color:var(--fg)">J4 Roll</span></div>
+        <div>Gripper base.obj → <span style="color:var(--fg)">Mount</span></div>
+        <div>Gripper 1.obj → <span style="color:var(--fg)">Jaw (×2)</span></div>
+        <div>grip link 1.obj → <span style="color:var(--fg)">Linkage</span></div>
+        <div>gear1/2.obj → <span style="color:var(--fg)">Gears</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="upload-footer">
+    <div class="upload-summary">Files loaded: <strong id="file-count">0</strong> &nbsp;|&nbsp; Total parts: <strong id="part-count">0</strong></div>
+    <button class="btn-launch" id="btn-launch" onclick="showAxisCalibration()" disabled>PROCEED TO AXIS CALIBRATION →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ AXIS CALIBRATION SCREEN -->
+<div id="axis-screen" style="display:none; flex-direction:column; height:100vh; width:100vw; position:fixed; top:0; left:0; background:var(--bg0); z-index:9500;">
+  <div class="upload-header">
+    <button class="tb-btn" onclick="document.getElementById('axis-screen').style.display='none'; document.getElementById('upload-screen').style.display='flex';" style="margin-right:16px;">◀ BACK</button>
+    <div class="logo">M.A.T.R.I.X.<span>AXIS CALIBRATION</span></div>
+    <div style="font-size:11px;color:var(--fg2);margin-left:auto">STEP 02 — SET CENTER POINTS</div>
+  </div>
+  <div class="upload-body" style="flex:1;">
+    <div class="upload-left" style="width:280px; overflow-y:auto;">
+      <div class="section-label">Select a Model</div>
+      <div class="file-list" id="axis-file-list"></div>
+    </div>
+    <div class="upload-right" style="position:relative; flex:1; padding:0; background:#020408;">
+      <canvas id="axis-canvas" style="width:100%; height:100%; outline:none;"></canvas>
+      <div style="position:absolute; bottom:20px; left:20px; background:var(--bg2); padding:15px; border-radius:6px; border:1px solid var(--bg4); box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+        <div style="font-size:12px; font-weight:600; margin-bottom:8px; color:var(--cyan);" id="axis-current-name">No Model Selected</div>
+        <div style="font-size:10px; color:var(--fg2); margin-bottom:12px; max-width:250px;">Click 4 points around the circular rim of the hinge. The crosshair will automatically perfectly center between them.</div>
+        <button class="btn success" id="btn-set-axis" disabled onclick="saveAxisPoint()">✔ SET CENTER POINT</button>
+      </div>
+    </div>
+  </div>
+  <div class="upload-footer">
+    <button class="btn-launch" id="btn-finish-axis" onclick="launchDashboard()" style="margin-left:auto;">LAUNCH M.A.T.R.I.X. →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ MAIN DASHBOARD -->
+<div id="main">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <button class="tb-btn" onclick="document.getElementById('main').style.display='none'; showProjectHub();">◀ HUB</button>
+    <div class="tb-logo">M.A.T.R.I.X.<small>Real-Time Arm Control</small></div>
+    <div class="tb-sep"></div>
+    <div class="tb-badge"><div class="dot" id="qnx-dot"></div><div><label>QNX</label><span id="qnx-lbl">OFFLINE</span></div></div>
+    <div class="tb-badge"><div class="dot warn" id="ws-dot"></div><div><label>BRIDGE</label><span id="ws-lbl">Connecting</span></div></div>
+    <div class="tb-badge"><div class="dot" id="mode-dot" style="background:var(--cyan)"></div><div><label>MODE</label><span id="mode-lbl">MANUAL</span></div></div>
+    <div id="tb-proj-name" style="position:absolute; left:50%; transform:translateX(-50%); font-family:var(--head); font-size:13px; color:var(--fg); letter-spacing:1px; white-space:nowrap;"></div>
+    <div class="tb-spacer"></div>
+    <button class="tb-btn" onclick="autoSave(); toast('Project manually saved'); flashSaveIndicator();">💾 SAVE</button>
+    <button class="tb-btn" id="btn-edit-toggle" onclick="toggleEdit()">✏ EDIT MODE</button>
+    <button class="tb-btn" onclick="showAxisCalibFromMain()">📐 AXIS CAL</button>
+    <button class="tb-btn" onclick="uploadNew()">⬆ RELOAD MODELS</button>
+  </div>
+
+  <div id="content">
+
+    <!-- EDIT LEFT PANEL (shown in edit mode) -->
+    <div id="edit-panel-left">
+
+      <!-- ① JOINT CONTROL EDIT TOGGLE — top of panel -->
+      <div class="p-head" style="color:var(--amber)">JOINT CONTROL EDIT</div>
+      <div class="p-section" style="padding-top:8px">
+        <button class="jce-toggle" id="jce-btn" onclick="toggleJointControlEdit()">⚙ JOINT CTRL EDIT: OFF</button>
+        <div style="font-size:9px;color:var(--fg3);margin-top:6px;line-height:1.6;padding:5px;background:var(--bg3);border-radius:3px">
+          Enable → move part on canvas → click Set Pose. Slider will SLERP between saved poses.
+        </div>
+
+        <!-- Calibration section — visible when JCE ON + part selected -->
+        <div id="calib-menu" class="calib-menu">
+          <div class="calib-part-name">Part:<span id="calib-part-lbl">— select a part —</span></div>
+          <div style="font-size:9px;color:var(--fg2);margin-bottom:6px">Move part to position, then click:</div>
+          <div class="calib-pose-btns">
+            <button class="cpb" id="cpb-0"   onclick="setCalibPose('q0')">
+              <div style="font-size:13px">0°</div><div style="font-size:8px;margin-top:2px">START</div>
+            </button>
+            <button class="cpb" id="cpb-90"  onclick="setCalibPose('q90')">
+              <div style="font-size:13px">90°</div><div style="font-size:8px;margin-top:2px">MID</div>
+            </button>
+            <button class="cpb" id="cpb-180" onclick="setCalibPose('q180')">
+              <div style="font-size:13px">180°</div><div style="font-size:8px;margin-top:2px">END</div>
+            </button>
+          </div>
+          <div class="test-calib-wrap" style="margin-top:10px">
+            <div class="test-calib-lbl">TEST SLIDER — drag to verify</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:9px;color:var(--fg3)">0°</span>
+              <input type="range" id="calib-test-slider" min="0" max="180" value="0" step="1"
+                     style="flex:1" oninput="testCalibSlider(this.value)">
+              <span style="font-size:9px;color:var(--fg3)">180°</span>
+            </div>
+            <div style="text-align:center;font-size:14px;color:var(--amber);font-family:var(--head);margin-top:4px"
+                 id="calib-test-val">0°</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② JOINT SLIDERS (always visible in edit mode) -->
+      <div class="p-head" style="color:var(--cyan)">JOINT CONTROL</div>
+      <div class="p-section" style="padding-top:8px" id="edit-slider-section">
+        <!-- Injected by buildEditSliders() -->
+      </div>
+
+      <!-- ③ EDIT TOOLS -->
+      <div class="p-head" style="color:var(--amber)">EDIT TOOLS</div>
+      <div class="p-section" style="padding-top:8px">
+        <div class="btn-row">
+          <button class="btn" style="border-color:var(--cyan)" onclick="transform.setMode('translate')">⬌ MOVE (T)</button>
+          <button class="btn" style="border-color:var(--cyan)" onclick="transform.setMode('rotate')">↻ ROTATE (R)</button>
+        </div>
+        <div class="btn-row" style="margin-top:4px">
+          <button class="btn" style="border-color:var(--cyan)"
+            onclick="transform.setSpace(transform.space==='local'?'world':'local')">🌐 SPACE (L)</button>
+          <button class="btn" style="border-color:var(--blue)"
+            onclick="showAxisCalibFromMain()">📐 RECALIBRATE</button>
+        </div>
+        <div class="btn-row" style="margin-top:4px">
+          <button class="btn" style="border-color:var(--amber)" onclick="undoEdit()">↶ UNDO (Z)</button>
+          <button class="btn" style="border-color:var(--amber)" onclick="redoEdit()">↷ REDO (Y)</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- LEFT PANEL -->
+    <div id="panel-left">
+      <div id="panel-joint-section">
+      <div class="p-head">JOINT CONTROL</div>
+      <div class="p-section" style="padding-top:10px" id="slider-section">
+        <!-- Sliders injected by JS -->
+      </div>
+      <div id="panel-mode-section">
+      <div class="p-head">OPERATING MODE</div>
+      <div class="p-section" style="padding-top:10px">
+        <div class="mode-row">
+          <button class="mode-btn active-manual" id="mBtn-manual" onclick="setMode('manual')">MANUAL</button>
+          <button class="mode-btn" id="mBtn-rtos" onclick="setMode('rtos')">RTOS</button>
+          <button class="mode-btn" id="mBtn-nonrtos" onclick="setMode('nonrtos')">NON-RTOS</button>
+        </div>
+        <div class="mode-desc" id="mode-desc">Slider control. No QNX execution.</div>
+        <div class="btn-row">
+          <button class="btn danger" id="btn-emerg" onclick="triggerEmergency()">🛑 EMERGENCY</button>
+          <button class="btn success" onclick="clearEmergency()">✔ CLEAR</button>
+        </div>
+        <div class="btn-row" style="margin-top:5px">
+          <button class="btn warn" id="btn-load" onclick="toggleLoad()">⚙ ADD LOAD</button>
+          <button class="btn primary" id="btn-run" onclick="runMode()">▶ RUN</button>
+        </div>
+      </div>
+      </div><!-- /panel-mode-section -->
+      <div id="panel-record-section">
+      <div class="p-head">TEACH &amp; RECORD</div>
+      <div class="p-section" style="padding-top:10px">
+        <div class="btn-row">
+          <button class="btn primary" onclick="recordPose()">📌 RECORD</button>
+          <button class="btn success" onclick="sendToQNX()">⬆ SEND→QNX</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="stopReplay()">■ STOP</button>
+          <button class="btn danger" onclick="clearSeq()">🗑 CLEAR</button>
+        </div>
+        <div id="seq-list"></div>
+      </div>
+      </div><!-- /panel-joint-section -->
+      </div><!-- /panel-record-section -->
+      <div id="edit-actuation-panel" style="display:none;">
+        <div class="p-head" style="color:var(--amber);">EDIT MODE ACTUATION</div>
+        <div class="p-section" style="padding-top:10px; color:var(--amber);">
+          <div style="font-size:10px; margin-bottom:8px;">Set Joint Axis for: <span id="edit-act-name" style="color:#fff;font-weight:bold;"></span></div>
+          <div class="btn-row">
+            <button class="btn" id="btn-act-horiz" onclick="setActuationAxis('Y')" style="border-color:var(--amber);color:var(--amber);">Horizontal (Y)</button>
+            <button class="btn" id="btn-act-vert" onclick="setActuationAxis('Z')" style="border-color:var(--amber);color:var(--amber);">Vertical (Z)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3D VIEWPORT -->
+    <div id="viewport">
+      <canvas id="three-canvas"></canvas>
+      <div class="canvas-overlay" id="mode-strip" style="color:var(--cyan)">MODE: MANUAL</div>
+      <div class="canvas-overlay" id="angle-strip">J0:+0.0° J1:+0.0° J2:+0.0° J3:+0.0° J4:+0.0°</div>
+      <div class="canvas-overlay" id="edit-strip">✏ EDIT MODE — Drag parts to reposition</div>
+      <div id="axis-angle-overlay"></div>
+      <div id="emerg-overlay"><div class="emerg-text">⚠ EMERGENCY STOP ⚠</div></div>
+      <div class="canvas-overlay" style="bottom:10px; left:10px; pointer-events:auto; display:flex; gap:10px; z-index:10;">
+        <button class="btn" style="background:var(--bg2); border-color:var(--cyan); color:var(--cyan); font-family:var(--head); padding:8px 16px; font-size:11px;" onclick="S.targets=[0,0,0,0,0,0];">RESET (0°)</button>
+        <button class="btn" style="background:var(--bg2); border-color:var(--green); color:var(--green); font-family:var(--head); padding:8px 16px; font-size:11px;" onclick="S.targets=[90,90,90,90,90,0];">HOME (90°)</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div id="panel-right">
+      <!-- EDIT MODE COORD SECTION (only visible in edit mode) -->
+      <div id="edit-coord-section">
+        <div class="p-head" style="color:var(--amber)">PART TRANSFORM</div>
+        <div style="padding:8px 12px 4px">
+          <div style="font-size:9px;color:var(--fg2);letter-spacing:.12em;margin-bottom:8px">POSITION</div>
+          <div class="coord-group">
+            <span class="coord-lbl cx">X</span>
+            <input class="coord-inp cx" id="ci-px" type="number" step="0.01" placeholder="0.00" oninput="applyCoordInput()"/>
+          </div>
+          <div class="coord-group">
+            <span class="coord-lbl cy">Y</span>
+            <input class="coord-inp cy" id="ci-py" type="number" step="0.01" placeholder="0.00" oninput="applyCoordInput()"/>
+          </div>
+          <div class="coord-group">
+            <span class="coord-lbl cz">Z</span>
+            <input class="coord-inp cz" id="ci-pz" type="number" step="0.01" placeholder="0.00" oninput="applyCoordInput()"/>
+          </div>
+          <div style="font-size:9px;color:var(--fg2);letter-spacing:.12em;margin:8px 0 8px">ROTATION (degrees)</div>
+          <div class="coord-group">
+            <span class="coord-lbl cx">X</span>
+            <input class="coord-inp cx" id="ci-rx" type="number" step="0.1" placeholder="0.0°" oninput="applyCoordInput()"/>
+          </div>
+          <div class="coord-group">
+            <span class="coord-lbl cy">Y</span>
+            <input class="coord-inp cy" id="ci-ry" type="number" step="0.1" placeholder="0.0°" oninput="applyCoordInput()"/>
+          </div>
+          <div class="coord-group">
+            <span class="coord-lbl cz">Z</span>
+            <input class="coord-inp cz" id="ci-rz" type="number" step="0.1" placeholder="0.0°" oninput="applyCoordInput()"/>
+          </div>
+        </div>
+      </div>
+      <div id="panel-status-section">
+        <div class="p-head">SYSTEM STATUS</div>
+        <div class="p-section" style="padding-top:10px">
+          <div class="led-grid">
+            <div class="led-cell"><div class="led-dot led-on-g" id="led-ok"></div><div class="led-lbl">NORMAL</div></div>
+            <div class="led-cell"><div class="led-dot led-off-r" id="led-em"></div><div class="led-lbl">EMERGENCY</div></div>
+            <div class="led-cell"><div class="led-dot led-off-a" id="led-load"></div><div class="led-lbl">LOAD</div></div>
+            <div class="led-cell"><div class="led-dot led-off-c" id="led-qnx"></div><div class="led-lbl">QNX LIVE</div></div>
+          </div>
+        </div>
+        <div class="p-head">TELEMETRY</div>
+        <div class="p-section" style="padding-top:10px">
+          <div class="tele-grid">
+            <div class="tele-cell"><div class="tele-val" id="t-pkt" style="color:var(--cyan)">0</div><div class="tele-key">PACKETS</div></div>
+            <div class="tele-cell"><div class="tele-val" id="t-fps" style="color:var(--green)">—</div><div class="tele-key">FPS</div></div>
+            <div class="tele-cell"><div class="tele-val" id="t-seq" style="color:var(--amber)">0</div><div class="tele-key">POSES</div></div>
+            <div class="tele-cell"><div class="tele-val" id="t-wdg" style="color:var(--red)">0</div><div class="tele-key">WDG HITS</div></div>
+          </div>
+        </div>
+      </div><!-- /panel-status-section -->
+      <div class="p-head">EVENT LOG</div>
+      <div class="p-section" style="padding-top:8px">
+        <div id="log-box"></div>
+      </div>
+    </div><!-- /panel-right -->
+
+  </div><!-- #content -->
+</div><!-- #main -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+"use strict";
+// ═══════════════════════════════════════════════════════════════════
+//  UPLOAD PAGE LOGIC
+// ═══════════════════════════════════════════════════════════════════
+const uploadedFiles = {};   // filename → File object
+const quantities    = {};   // filename → count
+let previewScene, previewCamera, previewRenderer, previewAnim;
+
+function initPreviewRenderer(){
+  const c = document.getElementById('preview-canvas');
+  const w = c.parentElement.clientWidth||200, h = c.parentElement.clientHeight||200;
+  previewRenderer = new THREE.WebGLRenderer({canvas:c,antialias:true,alpha:true});
+  previewRenderer.setSize(w,h);
+  previewCamera = new THREE.PerspectiveCamera(45,w/h,.01,100);
+  previewCamera.position.set(0,1,3);
+  previewScene  = new THREE.Scene();
+  previewScene.add(new THREE.AmbientLight(0xffffff,.8));
+  const dl = new THREE.DirectionalLight(0x00d4ff,1.2); dl.position.set(2,3,2); previewScene.add(dl);
+  function loop(){ previewAnim = requestAnimationFrame(loop);
+    if(previewScene.children.length>2){ previewScene.children.forEach(c=>{ if(c.isMesh||c.isGroup) c.rotation.y+=.008; }); }
+    previewRenderer.render(previewScene,previewCamera);
+  }
+  loop();
+}
+
+function showPreview(file){
+  if(!previewRenderer) initPreviewRenderer();
+  // Clear previous models
+  while(previewScene.children.length>2) previewScene.remove(previewScene.children[2]);
+  document.getElementById('preview-label').textContent = file.name;
+  
+  const isSTL = file.name.toLowerCase().endsWith('.stl');
+  const loader = isSTL ? new THREE.STLLoader() : new THREE.OBJLoader();
+  const url = URL.createObjectURL(file);
+  
+  loader.load(url, obj=>{
+    let meshGroup = obj;
+    if(isSTL){
+      const mat = new THREE.MeshStandardMaterial({color:0x1a6cf5,roughness:.4,metalness:.6});
+      meshGroup = new THREE.Mesh(obj, mat);
+    }
+    const box = new THREE.Box3().setFromObject(meshGroup);
+    const sz  = box.getSize(new THREE.Vector3());
+    const sc  = 1.5/Math.max(sz.x,sz.y,sz.z);
+    meshGroup.scale.setScalar(sc);
+    const ctr = box.getCenter(new THREE.Vector3());
+    meshGroup.position.sub(ctr.multiplyScalar(sc));
+    if(!isSTL){
+      meshGroup.traverse(c=>{ if(c.isMesh) c.material=new THREE.MeshStandardMaterial({color:0x1a6cf5,roughness:.4,metalness:.6}); });
+    }
+    previewScene.add(meshGroup);
+    
+    // Auto-frame perfectly
+    const finalBox = new THREE.Box3().setFromObject(meshGroup);
+    const finalCtr = finalBox.getCenter(new THREE.Vector3());
+    const finalSz = finalBox.getSize(new THREE.Vector3());
+    const maxDim = Math.max(finalSz.x, finalSz.y, finalSz.z);
+    if(axisOrbit) axisOrbit.target.copy(finalCtr); // if we had orbit here, but we don't.
+    previewCamera.position.set(finalCtr.x, finalCtr.y, finalCtr.z + maxDim*1.5);
+    previewCamera.lookAt(finalCtr);
+  });
+}
+
+function handleFiles(files){
+  for(const f of files){
+    const lower = f.name.toLowerCase();
+    if(!lower.endsWith('.obj') && !lower.endsWith('.stl')) continue;
+    uploadedFiles[f.name] = f;
+    quantities[f.name]    = quantities[f.name]||1;
+  }
+  renderFileList();
+}
+
+function renderFileList(){
+  const list = document.getElementById('file-list');
+  list.innerHTML='';
+  const names = Object.keys(uploadedFiles);
+  names.forEach(name=>{
+    const f   = uploadedFiles[name];
+    const kb  = (f.size/1024).toFixed(1);
+    const row = document.createElement('div');
+    row.className='file-item';
+    const ext = name.split('.').pop().toUpperCase();
+    row.innerHTML=`
+      <div class="fi-icon" onclick="showPreview(uploadedFiles['${name}'])" style="cursor:pointer" title="Preview">${ext}</div>
+      <div>
+        <div class="fi-name" title="${name}">${name}</div>
+        <div class="fi-size">${kb} KB</div>
+      </div>
+      <div class="fi-size">${kb}KB</div>
+      <div class="qty-control">
+        <button class="qty-btn" onclick="changeQty('${name}',-1)">−</button>
+        <input class="qty-val" type="number" min="1" max="10" value="${quantities[name]}" id="qty-${CSS.escape(name)}" onchange="quantities['${name}']=Math.max(1,+this.value)"/>
+        <button class="qty-btn" onclick="changeQty('${name}',1)">+</button>
+      </div>`;
+    row.querySelector('.fi-icon').addEventListener('click',()=>showPreview(f));
+    list.appendChild(row);
+  });
+  const total = Object.values(quantities).reduce((a,b)=>a+b,0);
+  document.getElementById('file-count').textContent=names.length;
+  document.getElementById('part-count').textContent=total;
+  document.getElementById('btn-launch').disabled = names.length===0;
+}
+
+function changeQty(name,delta){
+  if(quantities[name]===1 && delta===-1){
+    dzRemove(name);
+    return;
+  }
+  quantities[name] = Math.max(1,Math.min(10,(quantities[name]||1)+delta));
+  const el = document.getElementById('qty-'+CSS.escape(name));
+  if(el) el.value = quantities[name];
+  const total = Object.values(quantities).reduce((a,b)=>a+b,0);
+  document.getElementById('part-count').textContent=total;
+  updateAssemblyMap();
+}
+
+function dzDrag(e,on){ e.preventDefault(); document.getElementById('drop-zone').classList.toggle('drag',on); }
+function dzDrop(e){ e.preventDefault(); dzDrag(e,false); handleFiles(e.dataTransfer.files); }
+function dzRemove(name){ delete uploadedFiles[name]; delete quantities[name]; renderFileList(); updateAssemblyMap(); }
+
+function updateAssemblyMap() {
+  const mapDiv = document.querySelector('.upload-right > div:last-child');
+  if(!mapDiv) return;
+  mapDiv.innerHTML = `<div style="color:var(--cyan);margin-bottom:6px;font-size:9px;letter-spacing:.12em">ASSEMBLY MAP</div>`;
+  Object.keys(uploadedFiles).forEach(k => {
+    let mapping = "Part";
+    let kl = k.toLowerCase();
+    if(kl.includes('base')) mapping = "J0 Yaw";
+    else if(kl.includes('waist')) mapping = "J1 Shoulder";
+    else if(kl.includes('arm 01')) mapping = "J2 Elbow";
+    else if(kl.includes('arm 02')) mapping = "J3 Wrist";
+    else if(kl.includes('arm 03')) mapping = "J4 Roll";
+    else if(kl.includes('gripper base')) mapping = "Mount";
+    else if(kl.includes('gripper')) mapping = "Jaw";
+    else if(kl.includes('gear')) mapping = "Gear";
+    mapDiv.innerHTML += `<div>${k} <span style="font-size:9px;opacity:0.6">(x${quantities[k]})</span> → <span style="color:var(--fg)">${mapping}</span></div>`;
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  LOADING SEQUENCE
+// ═══════════════════════════════════════════════════════════════════
+const loadSteps=[
+  [10,'Booting M.A.T.R.I.X. kernel…'],
+  [25,'Loading Three.js renderer…'],
+  [45,'Initializing RTOS simulation engine…'],
+  [60,'Establishing WebSocket bridge…'],
+  [75,'Compiling shader programs…'],
+  [90,'Configuring joint controllers…'],
+  [100,'Systems nominal. Ready.']
+];
+let li=0;
+function animLoad(){
+  if(li>=loadSteps.length){ setTimeout(showProjectHub,500); return; }
+  const [pct,msg]=loadSteps[li++];
+  document.getElementById('load-bar').style.width=pct+'%';
+  document.getElementById('load-status').textContent=msg;
+  setTimeout(animLoad,380+Math.random()*200);
+}
+setTimeout(animLoad,600);
+
+function showUpload(){
+  document.getElementById('loading').style.opacity='0';
+  document.getElementById('loading').style.transition='opacity .5s';
+  setTimeout(()=>{ document.getElementById('loading').style.display='none';
+    document.getElementById('upload-screen').style.display='flex';
+    initPreviewRenderer();
+  },500);
+}
+
+function uploadNew(){
+  document.getElementById('main').style.display='none';
+  document.getElementById('upload-screen').style.display='flex';
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  AXIS CALIBRATION & LAUNCH
+// ═══════════════════════════════════════════════════════════════════
+
+let axisScene, axisCamera, axisRenderer, axisOrbit, axisAnim;
+let axisRaycaster = new THREE.Raycaster();
+let axisMouse = new THREE.Vector2();
+let axisMesh = null;
+let axisHelper = null;
+let axisCurrentFile = null;
+let axisClicks = []; // 4-point calibration
+
+function initAxisRenderer(){
+  if(axisRenderer) return;
+  const c = document.getElementById('axis-canvas');
+  const w = c.parentElement.clientWidth||800, h = c.parentElement.clientHeight||600;
+  axisRenderer = new THREE.WebGLRenderer({canvas:c,antialias:true});
+  axisRenderer.setSize(w,h);
+  axisRenderer.setPixelRatio(window.devicePixelRatio);
+  axisCamera = new THREE.PerspectiveCamera(45,w/h,.01,100);
+  axisCamera.position.set(0,2,5);
+  axisScene = new THREE.Scene();
+  axisScene.background = new THREE.Color(0x020408);
+  axisScene.add(new THREE.AmbientLight(0xffffff,.6));
+  const dl = new THREE.DirectionalLight(0x00d4ff,1.2); dl.position.set(2,3,2); axisScene.add(dl);
+  axisOrbit = new THREE.OrbitControls(axisCamera, axisRenderer.domElement);
+  axisOrbit.enableDamping = true;
+  axisHelper = new THREE.AxesHelper(0.5);
+  axisHelper.visible = false;
+  axisScene.add(axisHelper);
+  c.addEventListener('click', function(e){
+    if(!axisMesh) return;
+    const rect = c.getBoundingClientRect();
+    axisMouse.x = ((e.clientX - rect.left)/rect.width)*2-1;
+    axisMouse.y = -((e.clientY - rect.top)/rect.height)*2+1;
+    axisRaycaster.setFromCamera(axisMouse, axisCamera);
+    const intersects = axisRaycaster.intersectObject(axisMesh, true);
+    if(intersects.length > 0){
+      // Save state before adding point (enables undo)
+      _axisClickHistory.push([...axisClicks]);
+      // If starting fresh (4th was already placed), reset
+      if(axisClicks.length === 4){
+        axisClicks = [];
+        axisScene.children.filter(function(ch){return ch.name==='clickPt';}).forEach(function(ch){axisScene.remove(ch);});
+        axisHelper.visible = false;
+        document.getElementById('btn-set-axis').disabled = true;
+      }
+      axisClicks.push(intersects[0].point.clone());
+      const ptGroup = new THREE.Group();
+      ptGroup.name = 'clickPt';
+      ptGroup.position.copy(intersects[0].point);
+      ptGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.006,8,8), new THREE.MeshBasicMaterial({color:0x00ff88})));
+      ptGroup.add(new THREE.Mesh(new THREE.TorusGeometry(0.018,0.002,6,20), new THREE.MeshBasicMaterial({color:0x00ff88})));
+      ptGroup.add(makeAxisNumSprite(axisClicks.length-1, intersects[0].point));
+      axisScene.add(ptGroup);
+      if(axisClicks.length === 4){
+        const center = new THREE.Vector3();
+        axisClicks.forEach(function(p){ center.add(p); });
+        center.divideScalar(4);
+        axisHelper.position.copy(center);
+        axisHelper.visible = true;
+        document.getElementById('btn-set-axis').disabled = false;
+      }
+    }
+  });
+  const ro = new ResizeObserver(function(){
+    const cw = c.parentElement.clientWidth, ch = c.parentElement.clientHeight;
+    if(cw&&ch){ axisRenderer.setSize(cw,ch); axisCamera.aspect=cw/ch; axisCamera.updateProjectionMatrix(); }
+  }); ro.observe(c.parentElement);
+  (function loop(){ axisAnim = requestAnimationFrame(loop); axisOrbit.update(); axisRenderer.render(axisScene,axisCamera); })();
+}
+
+function showAxisCalibration(){
+  document.getElementById('upload-screen').style.display='none';
+  document.getElementById('axis-screen').style.display='flex';
+  if(!axisRenderer) initAxisRenderer();
+  // Render list
+  const list = document.getElementById('axis-file-list');
+  list.innerHTML='';
+  Object.keys(uploadedFiles).forEach(function(name){
+    const row = document.createElement('div');
+    row.className='file-item';
+    row.style.cursor='pointer';
+    const mark = (S.axisOffsets&&S.axisOffsets[name]) ? '<div style="color:var(--green)">&#10004; SET</div>' : '';
+    row.innerHTML='<div class="fi-name">'+name+'</div>'+mark;
+    row.onclick = function(){ loadAxisModel(name); };
+    list.appendChild(row);
+  });
+}
+
+function loadAxisModel(fname){
+  axisCurrentFile = fname;
+  document.getElementById('axis-current-name').textContent = fname;
+  document.getElementById('btn-set-axis').disabled = true;
+  axisHelper.visible = false;
+  axisClicks = [];
+  axisScene.children.filter(ch=>ch.name==='clickPt').forEach(ch=>axisScene.remove(ch));
+  
+  if(axisMesh) { axisScene.remove(axisMesh); axisMesh=null; }
+  
+  const file = uploadedFiles[fname];
+  const isSTL = fname.toLowerCase().endsWith('.stl');
+  const loader = isSTL ? new THREE.STLLoader() : new THREE.OBJLoader();
+  const url = URL.createObjectURL(file);
+  
+  loader.load(url, obj=>{
+    if(isSTL){
+      const mat = new THREE.MeshStandardMaterial({color:0x1a6cf5,roughness:.4,metalness:.6});
+      axisMesh = new THREE.Mesh(obj, mat);
+    } else {
+      axisMesh = obj;
+      axisMesh.traverse(c=>{ if(c.isMesh) c.material=new THREE.MeshStandardMaterial({color:0x1a6cf5,roughness:.4,metalness:.6}); });
+    }
+    axisMesh.scale.setScalar(ARM_CFG.scale);
+    axisScene.add(axisMesh);
+    
+    const box = new THREE.Box3().setFromObject(axisMesh);
+    const ctr = box.getCenter(new THREE.Vector3());
+    const sz = box.getSize(new THREE.Vector3());
+    axisOrbit.target.copy(ctr);
+    axisCamera.position.set(ctr.x, ctr.y + sz.y, ctr.z + sz.z*2);
+    axisOrbit.update();
+    
+    if(S.axisOffsets && S.axisOffsets[fname]){
+      axisHelper.position.set(-S.axisOffsets[fname][0], -S.axisOffsets[fname][1], -S.axisOffsets[fname][2]);
+      axisHelper.visible = true;
+    }
+  });
+}
+
+function saveAxisPoint(){
+  if(!axisCurrentFile || !axisHelper.visible) return;
+  if(!S.axisOffsets) S.axisOffsets = {};
+  S.axisOffsets[axisCurrentFile] = [-axisHelper.position.x, -axisHelper.position.y, -axisHelper.position.z];
+  toast(`Axis Center Point set for ${axisCurrentFile}`);
+  
+  const list = document.getElementById('axis-file-list');
+  [...list.children].forEach(c => {
+    if(c.querySelector('.fi-name').textContent === axisCurrentFile){
+      if(!c.innerHTML.includes('✔')) c.innerHTML += '<div style="color:var(--green)">✔ SET</div>';
+    }
+  });
+}
+
+function launchDashboard(){
+  document.getElementById('axis-screen').style.display='none';
+  document.getElementById('main').style.display='flex';
+  ProjectDB.saveFilesForProject(currentProjectId, uploadedFiles, quantities).then(()=>{
+    return ProjectDB.loadProject(currentProjectId).then(proj => {
+      proj.axisOffsets = S.axisOffsets;
+      return ProjectDB.saveProject(proj);
+    });
+  }).then(()=>{
+    initDashboard();
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  APPLICATION STATE
+// ═══════════════════════════════════════════════════════════════════
+const S = {
+  savedTransforms: null,
+
+  angles:       [90,90,90,90,90,0],
+  targets:      [90,90,90,90,90,0],
+  emergency:    false,
+  load:         false,
+  mode:         'manual',  // 'manual'|'rtos'|'nonrtos'
+  replaying:    false,
+  qnxConnected: false,
+  packets:      0,
+  sequence:     [],
+  repIdx:       0,
+  repFrame:     0,
+  editMode:     false,
+  wdgHits:      0,
+  axisOffsets:  {},
+  actuationAxes:{},
+  // NON-RTOS state
+  nrJoint:      0,
+  nrTimer:      0,
+  jitterT:      0,
+};
+const NR_SLOT  = 54;
+const REP_DUR  = 168;
+const LR_RTOS  = 0.12;
+const LR_NR    = 0.05;
+const JIT_AMP  = 12;
+let fps=0,fpsF=0,fpsLast=performance.now();
+
+let _dragJustFinished = false;
+
+// Calibration data: calibrationData[pivotUUID] = { q0, q90, q180 }
+const calibrationData = {};
+let jointControlEditActive = false;
+let _renameTargetId = null;
+let _axisClickHistory = []; // undo stack for axis calibration
+
+// ── Axis calibration number sprite helper ──────────────────
+function makeAxisNumSprite(n, pos){
+  const canvas = document.createElement('canvas');
+  canvas.width=32; canvas.height=32;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle='rgba(0,255,136,0.9)';
+  ctx.beginPath(); ctx.arc(16,16,12,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#020408'; ctx.font='bold 16px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(n+1,16,16);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({map:tex,depthTest:false});
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.06,0.06,1);
+  sprite.position.set(0,0.04,0);
+  return sprite;
+}
+
+// ── Show axis calibration from inside main dashboard ───────
+function showAxisCalibFromMain(){
+  if(!axisRenderer) initAxisRenderer();
+  document.getElementById('axis-screen').style.display='flex';
+  // Swap footer buttons
+  const footer = document.getElementById('axis-screen').querySelector('.upload-footer');
+  footer.innerHTML=
+    '<button class="tb-btn" onclick="backToDashboardFromAxis()" style="margin-right:auto">&#9664; BACK TO DASHBOARD</button>'
+    +'<button class="btn-launch" onclick="saveAxisAndBack()">&#10004; SAVE &amp; RETURN &#8594;</button>';
+  // Rebuild file list
+  const list = document.getElementById('axis-file-list');
+  list.innerHTML='';
+  Object.keys(uploadedFiles).forEach(function(name){
+    const row=document.createElement('div'); row.className='file-item'; row.style.cursor='pointer';
+    const isSet = S.axisOffsets && S.axisOffsets[name];
+    row.style.borderColor = isSet ? 'var(--green)' : '';
+    row.innerHTML='<div class="fi-name" style="flex:1">'+name+'</div>'
+      +(isSet?'<div style="color:var(--green);font-size:10px;margin-left:8px">&#10004;</div>':'');
+    row.onclick=function(){ loadAxisModel(name); };
+    list.appendChild(row);
+  });
+  toast('Select a part, click 4 points on its hinge rim, then Set Center Point');
+}
+function backToDashboardFromAxis(){
+  document.getElementById('axis-screen').style.display='none';
+  // Restore original footer if coming back from dashboard overlay
+  const footer = document.getElementById('axis-screen').querySelector('.upload-footer');
+  footer.innerHTML='<button class="btn-launch" id="btn-finish-axis" onclick="launchDashboard()">LAUNCH M.A.T.R.I.X. &#8594;</button>';
+}
+function saveAxisAndBack(){
+  if(axisCurrentFile && axisHelper && axisHelper.visible) saveAxisPoint();
+  document.getElementById('axis-screen').style.display='none';
+  if(!scene || !renderer){
+    launchDashboard();
+    return;
+  }
+  if(scene && renderer){
+    // Remove all non-environment scene objects and rebuild arm
+    const keep=['floor','grid','ring','sun','rim','fill'];
+    const toRemove=[];
+    scene.traverse(function(o){ if(o!==scene && !o.parent.isScene===false && o.name && keep.includes(o.name)) return; });
+    // Simpler: remove old arm groups
+    const armGroups=['Static_Base','J0_Base','J1_Shoulder','J2_Elbow','J3_WristPitch','J4_WristRoll','Gripper_Root','Left_Gear_Pivot','Right_Gear_Pivot','Left_Jaw_Pivot','Right_Jaw_Pivot'];
+    armGroups.forEach(function(n){ const obj=scene.getObjectByName(n); if(obj) scene.remove(obj); });
+    arm = buildArm();
+    setTimeout(restoreProjectState, 600);
+  }
+  autoSave();
+  toast('Axis calibration saved — arm rebuilt');
+}
+
+
+
+// ── _setGizmoAtAxisCenter: no-op — gizmo is already at object world origin ──
+function _setGizmoAtAxisCenter(obj){
+  // The axis offset is baked into the mesh position via axisOffsets in loadModelInto.
+  // TransformControls attaches at the object's world origin which is already correct.
+  // This function is a hook for future pivot-offset support.
+}
+
+// ── Build edit-panel joint sliders (mirror of main sliders) ─
+function buildEditSliders(){
+  const sec=document.getElementById('edit-slider-section');
+  if(!sec) return;
+  sec.innerHTML='';
+  JOINTS.forEach(function(j,i){
+    const cur=S.angles[i]||0;
+    const tag=j.tag, name=j.name, col=j.col, mn=j.min, mx=j.max;
+    const valStr = i===5 ? cur.toFixed(0)+'%' : '+'+cur.toFixed(1)+'°';
+    const idv='ejv'+i, ids='ejs'+i;
+    const block=document.createElement('div');
+    block.className='joint-block';
+    block.innerHTML='<div class="joint-hdr">'
+      +'<span class="j-tag" style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44">'+tag+'</span>'
+      +'<span class="j-name">'+name+'</span>'
+      +'<span class="j-val" style="color:'+col+'" id="'+idv+'">'+valStr+'</span>'
+      +'</div>'
+      +'<input type="range" id="'+ids+'" min="'+mn+'" max="'+mx+'" value="'+cur+'" step="0.5"/>';
+    block.querySelector('input').addEventListener('input', function(){
+      onSlider(i, this.value);
+      const lbl=document.getElementById('ejv'+i);
+      if(lbl) lbl.textContent=(i===5)?this.value+'%':'+'+parseFloat(this.value).toFixed(1)+'°';
+    });
+    sec.appendChild(block);
+  });
+}
+
+// Undo/Redo History
+const editState = { history: [], redo: [], dragPos: new THREE.Vector3(), dragRot: new THREE.Euler() };
+function undoEdit(){
+  if(!S.editMode || editState.history.length===0) return;
+  const action = editState.history.pop();
+  action.obj.position.copy(action.oldPos);
+  action.obj.rotation.copy(action.oldRot);
+  editState.redo.push(action);
+}
+function redoEdit(){
+  if(!S.editMode || editState.redo.length===0) return;
+  const action = editState.redo.pop();
+  action.obj.position.copy(action.newPos);
+  action.obj.rotation.copy(action.newRot);
+  editState.history.push(action);
+}
+document.addEventListener('keydown', function(e){
+  // Axis screen: Ctrl+Z undoes last click point
+  const axScr=document.getElementById('axis-screen');
+  if(axScr && axScr.style.display==='flex'){
+    if(e.ctrlKey && e.key.toLowerCase()==='z'){
+      e.preventDefault();
+      if(!_axisClickHistory.length) return;
+      axisClicks=_axisClickHistory.pop();
+      if(axisScene) axisScene.children.filter(function(ch){return ch.name==='clickPt';}).forEach(function(ch){axisScene.remove(ch);});
+      if(axisHelper) axisHelper.visible=false;
+      const btn=document.getElementById('btn-set-axis'); if(btn) btn.disabled=true;
+      axisClicks.forEach(function(pt,i){
+        if(!axisScene) return;
+        const g=new THREE.Group(); g.name='clickPt'; g.position.copy(pt);
+        g.add(new THREE.Mesh(new THREE.SphereGeometry(0.006,8,8),new THREE.MeshBasicMaterial({color:0x00ff88})));
+        g.add(new THREE.Mesh(new THREE.TorusGeometry(0.018,0.002,6,20),new THREE.MeshBasicMaterial({color:0x00ff88})));
+        g.add(makeAxisNumSprite(i,pt));
+        axisScene.add(g);
+      });
+      if(axisClicks.length===4 && axisHelper){
+        const ctr=new THREE.Vector3(); axisClicks.forEach(function(p){ctr.add(p);}); ctr.divideScalar(4);
+        axisHelper.position.copy(ctr); axisHelper.visible=true;
+        if(btn) btn.disabled=false;
+      }
+      toast('Axis point undone');
+    }
+    return;
+  }
+  // Edit mode shortcuts
+  if(S.editMode){
+    if(e.ctrlKey){
+      if(e.key.toLowerCase()==='z'){ e.preventDefault(); undoEdit(); }
+      if(e.key.toLowerCase()==='y'){ e.preventDefault(); redoEdit(); }
+    } else {
+      if(e.key.toLowerCase()==='t' && transform){ transform.setMode('translate'); }
+      if(e.key.toLowerCase()==='r' && transform){ transform.setMode('rotate'); }
+      if(e.key.toLowerCase()==='l' && transform){ transform.setSpace(transform.space==='local'?'world':'local'); }
+    }
+  }
+});
+
+// Joint display config
+const JOINTS=[
+  {id:'J0',name:'Base Yaw',    min:0, max:180, col:'#4d9fff',tag:'J0'},
+  {id:'J1',name:'Shoulder',    min:0, max:180, col:'#b56aff',tag:'J1'},
+  {id:'J2',name:'Elbow',       min:0, max:180, col:'#00d4ff',tag:'J2'},
+  {id:'J3',name:'Wrist Pitch', min:0, max:180, col:'#00e676',tag:'J3'},
+  {id:'J4',name:'Wrist Roll',  min:0, max:180, col:'#ffb347',tag:'J4'},
+  {id:'J5',name:'Gripper',     min:0, max:100, col:'#ff47b3',tag:'J5'},
+];
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════════════
+let renderer,scene,camera,orbit,transform,arm;
+
+function initDashboard(){
+  buildSliders();
+  initThree();
+  connectWS();
+  requestAnimationFrame(loop);
+}
+
+function initThree(){
+  const canvas = document.getElementById('three-canvas');
+  const wrap   = document.getElementById('viewport');
+  renderer = new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.1;
+  scene = new THREE.Scene();
+  scene.background=new THREE.Color(0x020408);
+  scene.fog=new THREE.FogExp2(0x020408,.03);
+  camera=new THREE.PerspectiveCamera(45,1,.1,200);
+  camera.position.set(3,4,9);
+  orbit=new THREE.OrbitControls(camera,renderer.domElement);
+  orbit.enableDamping=true; orbit.dampingFactor=.08;
+  orbit.target.set(0,2.5,0); orbit.update();
+  transform=new THREE.TransformControls(camera,renderer.domElement);
+  transform.setSpace('local');
+  transform.addEventListener('dragging-changed',e=>{ 
+    orbit.enabled=!e.value; 
+    if(!e.value){
+      _dragJustFinished = true;
+      setTimeout(()=>_dragJustFinished = false, 150);
+      if(!transform.object) return;
+      editState.history.push({
+        obj: transform.object,
+        oldPos: editState.dragPos.clone(),
+        oldRot: editState.dragRot.clone(),
+        newPos: transform.object.position.clone(),
+        newRot: transform.object.rotation.clone()
+      });
+      editState.redo = [];
+      autoSave();
+    } else {
+      if(!transform.object) return;
+      editState.dragPos.copy(transform.object.position);
+      editState.dragRot.copy(transform.object.rotation);
+    }
+  });
+  transform.addEventListener('change', () => {
+    // Keep coord inputs in sync during drag
+    if(S.editMode && transform.object) updateCoordInputs();
+  });
+  scene.add(transform);
+
+  // Resize
+  const ro=new ResizeObserver(()=>{
+    const W=wrap.clientWidth,H=wrap.clientHeight;
+    renderer.setSize(W,H); camera.aspect=W/H; camera.updateProjectionMatrix();
+  }); ro.observe(wrap);
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0x304060,.5));
+  const sun=new THREE.DirectionalLight(0xffffff,1.3); sun.position.set(-3,8,-5); sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048); scene.add(sun);
+  const rim=new THREE.PointLight(0x0a84ff,2,18); rim.position.set(5,7,3); scene.add(rim);
+  const fill=new THREE.PointLight(0xff8040,.5,14); fill.position.set(-4,2,-3); scene.add(fill);
+
+  // Floor
+  const fgeo=new THREE.PlaneGeometry(24,24);
+  const fmat=new THREE.MeshStandardMaterial({color:0x060c14,roughness:.95,metalness:.1});
+  const floor=new THREE.Mesh(fgeo,fmat); floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor);
+  const grid=new THREE.GridHelper(24,24,0x0f1a2e,0x0f1a2e); grid.position.y=.002; scene.add(grid);
+  const rg=new THREE.RingGeometry(1.05,1.25,64);
+  const rm=new THREE.MeshBasicMaterial({color:0x0a84ff,side:THREE.DoubleSide});
+  const ring=new THREE.Mesh(rg,rm); ring.rotation.x=-Math.PI/2; ring.position.y=.005; scene.add(ring);
+
+  // Build arm
+  arm = buildArm();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  ROBOTIC ARM ASSEMBLY — Forward Kinematic Hierarchy
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Tunable offsets (change these to align your specific CAD parts) ──
+const ARM_CFG = {
+  scale:         0.012,
+  baseH:         0.45,
+  shoulderH:     1.05,
+  elbowH:        0.95,
+  wristPitchH:   0.80,
+  wristRollH:    0.65,
+  gripOffsetX:   0.05,
+  gripOffsetY:   0.12,
+  jawOffsetY:    0.16,
+  maxGripAngle:  0.45,
+};
+
+function buildArm(){
+  const mats={
+    blue  : new THREE.MeshStandardMaterial({color:0x1a6cf5,roughness:.3,metalness:.7}),
+    gray  : new THREE.MeshStandardMaterial({color:0x8090b0,roughness:.4,metalness:.6}),
+    dark  : new THREE.MeshStandardMaterial({color:0x304060,roughness:.5,metalness:.5}),
+    gear  : new THREE.MeshStandardMaterial({color:0x405070,roughness:.4,metalness:.8}),
+    grip  : new THREE.MeshStandardMaterial({color:0xb0c0d8,roughness:.35,metalness:.65}),
+    orange: new THREE.MeshStandardMaterial({color:0xff8020,roughness:.4,metalness:.5}),
+  };
+
+  const allMeshes=[];
+
+  // ── Resolve uploaded file by base name (.obj OR .stl) ──
+  function getFileEntry(expectedFname){
+    const base = expectedFname.replace(/\.(obj|stl)$/i, '').toLowerCase();
+    for(let k in uploadedFiles){
+      if(k.replace(/\.(obj|stl)$/i, '').toLowerCase() === base)
+        return { key: k, file: uploadedFiles[k] };
+    }
+    return { key: expectedFname, file: null };
+  }
+
+  // ── Apply saved edit-mode transform ──
+  function applySavedTransform(obj){
+    if(S.savedTransforms && obj.userData && obj.userData.partId){
+      const t = S.savedTransforms.find(x => x.partId === obj.userData.partId);
+      if(t){ obj.position.set(...t.pos); obj.rotation.set(...t.rot); }
+    }
+  }
+
+  // ── Load a model file into a group ──
+  function loadModelInto(fname, group, mat, meshOffset, meshRot, partId, isBase){
+    const entry = getFileEntry(fname);
+    const file  = entry.file;
+    const qty   = quantities[entry.key] || 1;
+    const pid   = partId || fname+'_0';
+    if(file){
+      const isSTL = file.name.toLowerCase().endsWith('.stl');
+      const ldr   = isSTL ? new THREE.STLLoader() : new THREE.OBJLoader();
+      const url   = URL.createObjectURL(file);
+      ldr.load(url, obj=>{
+        let baseMesh = obj;
+        if(isSTL) baseMesh = new THREE.Mesh(obj, mat.clone());
+        baseMesh.scale.setScalar(ARM_CFG.scale);
+        
+        let mo = S.axisOffsets && S.axisOffsets[fname] ? S.axisOffsets[fname] : meshOffset;
+        if(mo) baseMesh.position.set(...mo);
+        if(meshRot) baseMesh.rotation.set(...meshRot);
+        
+        baseMesh.userData.partId = pid;
+        applySavedTransform(baseMesh);
+        if(!isSTL) baseMesh.traverse(c=>{ if(c.isMesh){ c.material=mat.clone(); c.userData.origColor = c.material.color.clone(); c.castShadow=true; c.receiveShadow=true; allMeshes.push(c); }});
+        else { baseMesh.userData.origColor = baseMesh.material.color.clone(); baseMesh.castShadow=true; baseMesh.receiveShadow=true; allMeshes.push(baseMesh); }
+        group.add(baseMesh);
+        
+        for(let i=1; i<qty; i++){
+           const clone = baseMesh.clone(true);
+           clone.userData.partId = fname + '_' + i;
+           clone.position.x += i * 0.4;
+           applySavedTransform(clone);
+           group.add(clone);
+           if(isSTL) allMeshes.push(clone);
+           else clone.traverse(c=>{ if(c.isMesh) allMeshes.push(c); });
+        }
+        log(`Loaded ${file.name} (qty:${qty})`,'info');
+      }, undefined, ()=>{
+        for(let i=0; i<qty; i++){
+          let off = meshOffset ? [...meshOffset] : [0,0,0];
+          off[0] += i * 0.4;
+          addPrimitive(fname, group, mat, off, allMeshes, i===0 ? pid : fname+'_'+i);
+        }
+      });
+    } else {
+      for(let i=0; i<qty; i++){
+        let off = meshOffset ? [...meshOffset] : [0,0,0];
+        off[0] += i * 0.4;
+        addPrimitive(fname, group, mat, off, allMeshes, i===0 ? pid : fname+'_'+i);
+      }
+    }
+  }
+
+  // ── Load a model, add original to groupL, clone to groupR ──
+  function loadModelCloned(fname, groupL, groupR, mat, meshOffset, pidL, pidR){
+    const entry = getFileEntry(fname);
+    const file  = entry.file;
+    if(!file){
+      // fallback primitives handled outside
+      return;
+    }
+    const isSTL = file.name.toLowerCase().endsWith('.stl');
+    const ldr   = isSTL ? new THREE.STLLoader() : new THREE.OBJLoader();
+    const url   = URL.createObjectURL(file);
+    ldr.load(url, obj=>{
+      let mesh = obj;
+      if(isSTL) mesh = new THREE.Mesh(obj, mat.clone());
+      mesh.scale.setScalar(ARM_CFG.scale);
+      
+      let mo = S.axisOffsets && S.axisOffsets[fname] ? S.axisOffsets[fname] : meshOffset;
+      if(mo) mesh.position.set(...mo);
+      
+      mesh.userData.partId = pidL;
+      applySavedTransform(mesh);
+      if(!isSTL) mesh.traverse(c=>{ if(c.isMesh){ c.material=mat.clone(); c.userData.origColor = c.material.color.clone(); c.castShadow=true; c.receiveShadow=true; allMeshes.push(c); }});
+      else { mesh.userData.origColor = mesh.material.color.clone(); mesh.castShadow=true; mesh.receiveShadow=true; allMeshes.push(mesh); }
+      groupL.add(mesh);
+      
+      const clone = mesh.clone(true);
+      let cloneMo = S.axisOffsets && S.axisOffsets[fname] ? S.axisOffsets[fname] : meshOffset;
+      if(cloneMo) clone.position.set(-cloneMo[0], cloneMo[1], cloneMo[2]);
+      
+      clone.userData.partId = pidR;
+      applySavedTransform(clone);
+      if(isSTL) { clone.userData.origColor = clone.material.color.clone(); allMeshes.push(clone); }
+      else clone.traverse(c=>{ if(c.isMesh) { c.userData.origColor = c.material.color.clone(); allMeshes.push(c); }});
+      groupR.add(clone);
+      log(`Loaded ${file.name} (+ mirror)`,'info');
+    });
+  }
+
+  // ═════════════════════════════════════════════════════════════════
+  //  KINEMATIC CHAIN 
+  // ═════════════════════════════════════════════════════════════════
+
+  // Static Base — ALWAYS at scene center (0,0,0), never moved by saved transforms
+  const staticBase = new THREE.Group(); staticBase.name='Static_Base';
+  staticBase.position.set(0, 0, 0); // Always center, never moved
+  scene.add(staticBase);
+  loadModelInto('Base.obj', staticBase, mats.dark, null, null, 'Base.obj_0', true/*isBase*/);
+
+  // J0 (Base Yaw): Y-Axis
+  const j0 = new THREE.Group(); j0.name='J0_Base';
+  j0.position.y = ARM_CFG.baseH;
+  scene.add(j0);
+  loadModelInto('Waist.obj', j0, mats.blue, null, null, 'Waist.obj_0');
+
+  // J1 (Shoulder Pitch): Z-Axis
+  const j1 = new THREE.Group(); j1.name='J1_Shoulder';
+  j1.position.y = ARM_CFG.shoulderH;
+  j0.add(j1);
+  loadModelInto('Arm 01.obj', j1, mats.blue, null, null, 'Arm 01.obj_0');
+
+  // J2 (Elbow Pitch): Z-Axis
+  const j2 = new THREE.Group(); j2.name='J2_Elbow';
+  j2.position.y = ARM_CFG.elbowH;
+  j1.add(j2);
+  loadModelInto('Arm 02 v3.obj', j2, mats.blue, null, null, 'Arm 02 v3.obj_0');
+
+  // J3 (Wrist Pitch): Z-Axis
+  const j3 = new THREE.Group(); j3.name='J3_WristPitch';
+  j3.position.y = ARM_CFG.wristPitchH;
+  j2.add(j3);
+  loadModelInto('Arm 03.obj', j3, mats.blue, null, null, 'Arm 03.obj_0');
+
+  // J4 (Wrist Roll): Y-Axis
+  const j4 = new THREE.Group(); j4.name='J4_WristRoll';
+  j4.position.y = ARM_CFG.wristRollH;
+  j3.add(j4);
+  loadModelInto('Gripper base.obj', j4, mats.grip, null, null, 'Gripper base.obj_0');
+
+  // ═════════════════════════════════════════════════════════════════
+  //  GRIPPER SUB-ASSEMBLY 
+  // ═════════════════════════════════════════════════════════════════
+
+  // Gripper Root
+  const gripperRoot = new THREE.Group(); gripperRoot.name='Gripper_Root';
+  gripperRoot.position.y = 0; // J4 already provides the offset
+  j4.add(gripperRoot);
+
+  // ── Left Gear Pivot ──
+  const leftGearPiv = new THREE.Group(); leftGearPiv.name='Left_Gear_Pivot';
+  leftGearPiv.position.set(-ARM_CFG.gripOffsetX, ARM_CFG.gripOffsetY, 0);
+  gripperRoot.add(leftGearPiv);
+  loadModelInto('gear1.obj', leftGearPiv, mats.gear, [ARM_CFG.gripOffsetX, -ARM_CFG.gripOffsetY, 0], null, 'gear1.obj_0');
+
+  // ── Right Gear Pivot ──
+  const rightGearPiv = new THREE.Group(); rightGearPiv.name='Right_Gear_Pivot';
+  rightGearPiv.position.set(ARM_CFG.gripOffsetX, ARM_CFG.gripOffsetY, 0);
+  gripperRoot.add(rightGearPiv);
+  loadModelInto('gear2.obj', rightGearPiv, mats.gear, [-ARM_CFG.gripOffsetX, -ARM_CFG.gripOffsetY, 0], null, 'gear2.obj_0');
+
+  // ── Left Jaw Pivot ──
+  const leftJawPiv = new THREE.Group(); leftJawPiv.name='Left_Jaw_Pivot';
+  leftJawPiv.position.set(-ARM_CFG.gripOffsetX, ARM_CFG.jawOffsetY, 0);
+  gripperRoot.add(leftJawPiv);
+
+  // ── Right Jaw Pivot ──
+  const rightJawPiv = new THREE.Group(); rightJawPiv.name='Right_Jaw_Pivot';
+  rightJawPiv.position.set(ARM_CFG.gripOffsetX, ARM_CFG.jawOffsetY, 0);
+  gripperRoot.add(rightJawPiv);
+
+  // Load grip link 1 → left jaw, clone → right jaw
+  loadModelCloned('grip link 1.obj', leftJawPiv, rightJawPiv, mats.blue,
+    null, 'grip link 1.obj_L', 'grip link 1.obj_R');
+
+  // Load Gripper 1 (jaw) → left jaw, clone → right jaw
+  loadModelCloned('Gripper 1.obj', leftJawPiv, rightJawPiv, mats.grip,
+    null, 'Gripper 1.obj_L', 'Gripper 1.obj_R');
+
+  // ── Fallback primitives if no file uploaded ──
+  if(!getFileEntry('grip link 1.obj').file){
+    const lnkL = new THREE.Mesh(new THREE.BoxGeometry(.04,.3,.04), mats.blue.clone());
+    lnkL.userData.partId='grip link 1.obj_L'; lnkL.position.set(0,.14,0);
+    lnkL.castShadow=true; allMeshes.push(lnkL); leftJawPiv.add(lnkL);
+    const lnkR = lnkL.clone(); lnkR.userData.partId='grip link 1.obj_R';
+    allMeshes.push(lnkR); rightJawPiv.add(lnkR);
+  }
+  if(!getFileEntry('Gripper 1.obj').file){
+    const jawL = new THREE.Mesh(new THREE.BoxGeometry(.06,.28,.06), mats.grip.clone());
+    jawL.userData.partId='Gripper 1.obj_L'; jawL.position.set(-.015,.32,0);
+    jawL.castShadow=true; allMeshes.push(jawL); leftJawPiv.add(jawL);
+    const jawR = jawL.clone(); jawR.userData.partId='Gripper 1.obj_R';
+    jawR.position.set(.015,.32,0);
+    allMeshes.push(jawR); rightJawPiv.add(jawR);
+  }
+
+  // ═════════════════════════════════════════════════════════════════
+  //  RETURN ARM INTERFACE
+  // ═════════════════════════════════════════════════════════════════
+  const pivots = [j0, j1, j2, j3, j4, gripperRoot,
+                  leftGearPiv, rightGearPiv, leftJawPiv, rightJawPiv];
+
+  return {
+    j0, j1, j2, j3, j4,
+    gripperRoot, leftGearPiv, rightGearPiv, leftJawPiv, rightJawPiv,
+    pivots, allMeshes, origColors: null,
+
+    applyGrip(v){
+      const angle = (v / 100) * ARM_CFG.maxGripAngle;
+      leftGearPiv.rotation.z  = -angle;
+      leftJawPiv.rotation.z   = -angle;
+      rightGearPiv.rotation.z =  angle;
+      rightJawPiv.rotation.z  =  angle;
+    }
+  };
+}
+
+function addPrimitive(fname,pivot,mat,offset,list,partId){
+  const sizes={
+    'Base.obj':[.8,.45,.8],'Waist.obj':[.6,.5,.6],'Arm 01.obj':[.22,1.1,.22],
+    'Arm 02 v3.obj':[.19,.9,.19],'Arm 03.obj':[.17,.75,.17],
+    'gear1.obj':[.25,.06,.25],'gear2.obj':[.22,.05,.22],
+    'Gripper base.obj':[.35,.1,.3],'Gripper 1.obj':[.06,.28,.06],'grip link 1.obj':[.04,.3,.04],
+  };
+  const sz=sizes[fname]||[.3,.3,.3];
+  const m=new THREE.Mesh(new THREE.BoxGeometry(...sz),mat.clone());
+  m.userData.origColor = m.material.color.clone();
+  if(partId) m.userData.partId = partId;
+  if(S.savedTransforms && partId) {
+     const t = S.savedTransforms.find(x => x.partId === partId);
+     if(t) { m.position.set(...t.pos); m.rotation.set(...t.rot); }
+     else m.position.set(offset[0],offset[1]||sz[1]/2,offset[2]);
+  } else {
+     m.position.set(offset[0],offset[1]||sz[1]/2,offset[2]);
+  }
+  m.castShadow=true; m.receiveShadow=true; list.push(m); pivot.add(m);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  ARM ANIMATION
+// ═══════════════════════════════════════════════════════════════════
+function applyAngles(a){
+  if(!arm) return;
+  const D=Math.PI/180;
+  
+  arm.pivots.forEach((piv, i) => {
+     if(i >= 5) return;
+     
+     // Try SLERP from calibration data first
+     const cd = calibrationData[piv.uuid];
+     if(cd && cd.q0 && cd.q90){
+       const val = a[i]; // 0–180
+       const q = new THREE.Quaternion();
+       if(val <= 90){
+         const t = Math.max(0, Math.min(1, val / 90));
+         q.slerpQuaternions(cd.q0, cd.q90, t);
+       } else {
+         if(cd.q180){
+           const t = Math.max(0, Math.min(1, (val - 90) / 90));
+           q.slerpQuaternions(cd.q90, cd.q180, t);
+         } else {
+           // Extrapolate: continue SLERP direction past q90
+           const t = Math.max(0, Math.min(1, val / 90));
+           q.slerpQuaternions(cd.q0, cd.q90, t);
+         }
+       }
+       piv.quaternion.copy(q);
+       return;
+     }
+     
+     // Fallback: axis-based rotation
+     let axis = null;
+     if(S.actuationAxes){
+       piv.children.forEach(c => {
+         if(c.userData && c.userData.partId && S.actuationAxes[c.userData.partId]) axis = S.actuationAxes[c.userData.partId];
+       });
+     }
+     if(!axis){
+       if(i===0) axis='Y';
+       else if(i===1) axis='Z';
+       else if(i===2) axis='Z';
+       else if(i===3) axis='Z';
+       else if(i===4) axis='Y';
+     }
+     
+     piv.rotation.set(0,0,0);
+     if(axis === 'Y') piv.rotation.y = a[i]*D;
+     if(axis === 'Z') piv.rotation.z = a[i]*D;
+     if(axis === 'X') piv.rotation.x = a[i]*D;
+  });
+  
+  arm.applyGrip(a[5]);
+}
+
+let _emCached=null;
+function setEmergencyColor(on){
+  if(on===_emCached||!arm) return;
+  _emCached=on;
+  arm.allMeshes.forEach(m=>{
+    if(m.material&&m.material.color) {
+      if(on) m.material.color.set(0xff2244);
+      else if(m.userData.origColor) m.material.color.copy(m.userData.origColor);
+      else m.material.color.set(0x1a6cf5);
+    }
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  MAIN ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════════════
+function loop(){
+  requestAnimationFrame(loop);
+  fpsF++;
+  const now=performance.now();
+  if(now-fpsLast>=1000){ fps=fpsF; fpsF=0; fpsLast=now; }
+
+  const {emergency,load,mode,replaying,sequence}=S;
+
+  setEmergencyColor(emergency);
+  document.getElementById('emerg-overlay').classList.toggle('show',emergency);
+  if(emergency){ applyAngles(S.angles); orbit&&orbit.update(); renderer&&renderer.render(scene,camera); updateUI(); return; }
+
+  // Replay
+  if(replaying&&sequence.length>0){
+    S.repFrame++;
+    if(S.repFrame>=REP_DUR){ S.repFrame=0; S.repIdx=(S.repIdx+1)%sequence.length; }
+    S.targets=[...sequence[S.repIdx]];
+  }
+
+  // RTOS — smooth simultaneous
+  if(mode==='rtos'){
+    for(let i=0;i<6;i++) S.angles[i]+=(S.targets[i]-S.angles[i])*LR_RTOS;
+  }
+  // NON-RTOS — sequential + jitter
+  else if(mode==='nonrtos'){
+    let j=0;
+    if(load){ S.jitterT+=.016; j=JIT_AMP*Math.sin(S.jitterT*20)*Math.sin(S.jitterT*6.7); }
+    S.angles[S.nrJoint]+=(S.targets[S.nrJoint]+j-S.angles[S.nrJoint])*LR_NR;
+    S.nrTimer++;
+    if(S.nrTimer>=NR_SLOT){ S.nrTimer=0; S.nrJoint=(S.nrJoint+1)%6; }
+    // Emergency in NON-RTOS: wait for end of current loop
+    if(emergency&&S.repFrame>=REP_DUR-1){ setEmergencyFlag(); }
+  }
+  // Manual
+  else {
+    for(let i=0;i<6;i++) S.angles[i]+=(S.targets[i]-S.angles[i])*.15;
+  }
+
+  applyAngles(S.angles);
+  orbit&&orbit.update();
+  renderer&&renderer.render(scene,camera);
+  updateUI();
+  updateAxisAngleOverlay();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  UI BUILDERS
+// ═══════════════════════════════════════════════════════════════════
+function buildSliders(){
+  const sec=document.getElementById('slider-section');
+  sec.innerHTML='';
+  JOINTS.forEach((j,i)=>{
+    const isG = i===5;
+    const min = j.min;
+    const max = j.max;
+    const unit = isG ? '' : '°';
+    const initVal = isG ? '0' : '+0.0°';
+    sec.innerHTML+=`
+    <div class="joint-block">
+      <div class="joint-hdr">
+        <div class="j-tag" style="background:${j.col};color:${i===3||i===4?'black':'white'}">${j.tag}</div>
+        <div class="j-name">${j.name}</div>
+        <div class="j-val" id="jv${i}" style="color:${j.col}">${initVal}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:9px;color:var(--fg3)">${min}${unit}</span>
+        <input type="range" id="js${i}" min="${min}" max="${max}" value="0" step="0.5"
+          oninput="onSlider(${i},this.value)" style="flex:1">
+        <span style="font-size:9px;color:var(--fg3)">${max>0?'+':''}${max}${unit}</span>
+      </div>
+      ${isG ? `
+        <div style="margin-top:12px;padding:6px;background:var(--bg2);border:1px solid var(--bg4);border-radius:4px">
+          <svg id="grip-diagram" width="100%" height="80" viewBox="0 0 220 80">
+            <line x1="110" y1="10" x2="110" y2="40" stroke="#5a7aaa" stroke-width="2"/>
+            <rect x="85" y="35" width="50" height="10" rx="2" fill="#0f1a2e" stroke="#1e2d48"/>
+            <circle cx="95" cy="40" r="8" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <circle cx="125" cy="40" r="8" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <line id="gd-ll" x1="80" y1="45" x2="55" y2="72" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+            <rect id="gd-lf" x="40" y="66" width="20" height="8" rx="2" fill="#00d4ff" opacity=".8"/>
+            <line id="gd-rl" x1="140" y1="45" x2="165" y2="72" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+            <rect id="gd-rf" x="160" y="66" width="20" height="8" rx="2" fill="#00d4ff" opacity=".8"/>
+            <rect id="gd-obj" x="95" y="62" width="30" height="14" rx="3" fill="#ffaa00" opacity=".3" stroke="#ffaa00" stroke-width="1"/>
+            <text x="110" y="73" text-anchor="middle" fill="#ffaa00" font-size="8" font-family="Share Tech Mono">GRIP</text>
+          </svg>
+        </div>
+      ` : ''}
+    </div>`;
+  });
+}
+
+
+let _lastMode=null,_lastEM=null,_lastQNX=null,_lastLoad=null,_lastPkt=-1;
+function updateUI(){
+  const a=S.angles;
+  // Angle strip
+  document.getElementById('angle-strip').textContent=
+    a.map((v,i)=>i===5 ? `GRIP:${Math.round(v)}%` : `J${i}:${v>=0?'+':''}${v.toFixed(1)}°`).join('  ');
+
+  // Slider readouts
+  a.forEach((v,i)=>{
+    const lbl=document.getElementById(`jv${i}`);
+    if(lbl) lbl.textContent=i===5 ? Math.round(v) : `${v>=0?'+':''}${v.toFixed(1)}°`;
+    const elbl=document.getElementById(`ejv${i}`);
+    if(elbl) elbl.textContent=i===5?Math.round(v)+'%':`${v>=0?'+':''}${v.toFixed(1)}°`;
+    // Sync slider when QNX is driving
+    if(S.qnxConnected){
+      const sl=document.getElementById(`js${i}`); if(sl) sl.value=v;
+      const esl=document.getElementById(`ejs${i}`); if(esl) esl.value=v;
+    }
+  });
+
+  // Telemetry
+  if(S.packets!==_lastPkt){ document.getElementById('t-pkt').textContent=S.packets; _lastPkt=S.packets; }
+  document.getElementById('t-fps').textContent=fps;
+  document.getElementById('t-seq').textContent=S.sequence.length;
+  document.getElementById('t-wdg').textContent=S.wdgHits;
+
+  // QNX badge
+  if(S.qnxConnected!==_lastQNX){
+    _lastQNX=S.qnxConnected;
+    document.getElementById('qnx-dot').className='dot'+(S.qnxConnected?' on':'');
+    document.getElementById('qnx-lbl').textContent=S.qnxConnected?'ONLINE':'OFFLINE';
+    setLED('led-qnx',S.qnxConnected,'c','');
+  }
+
+  // Mode
+  if(S.mode!==_lastMode){
+    _lastMode=S.mode;
+    ['manual','rtos','nonrtos'].forEach(m=>document.getElementById(`mBtn-${m}`).className='mode-btn');
+    document.getElementById(`mBtn-${S.mode}`).classList.add(`active-${S.mode}`);
+    const descs={manual:'Slider control. No QNX execution.',
+                 rtos:'QNX controls arm. Deterministic. Emergency preempts instantly.',
+                 nonrtos:'Sequential joint movement. Emergency waits for sequence end.'};
+    document.getElementById('mode-desc').textContent=descs[S.mode];
+    const modeLabels={manual:'MANUAL',rtos:'RTOS',nonrtos:'NON-RTOS'};
+    document.getElementById('mode-lbl').textContent=modeLabels[S.mode];
+    document.getElementById('mode-strip').textContent='MODE: '+modeLabels[S.mode];
+    document.getElementById('mode-strip').style.color=
+      S.mode==='rtos'?'var(--green)':S.mode==='nonrtos'?'var(--amber)':'var(--cyan)';
+  }
+
+  // Emergency/load LEDs
+  if(S.emergency!==_lastEM){
+    _lastEM=S.emergency;
+    setLED('led-em',S.emergency,'r','');
+    setLED('led-ok',!S.emergency&&!S.load,'g','');
+  }
+  if(S.load!==_lastLoad){
+    _lastLoad=S.load;
+    setLED('led-load',S.load,'a','');
+    document.getElementById('btn-load').textContent=S.load?'⚙ REMOVE LOAD':'⚙ ADD LOAD';
+    document.getElementById('btn-load').className=S.load?'btn danger':'btn warn';
+  }
+
+  // Gripper diagram
+  updateGripDiagram();
+
+  // Replay highlight
+  if(S.replaying&&S.sequence.length>0){
+    document.querySelectorAll('.seq-item').forEach((el,i)=>el.classList.toggle('playing',i===S.repIdx));
+  }
+}
+
+function setLED(id,on,colorKey,_){
+  const el=document.getElementById(id); if(!el) return;
+  const map={g:['led-off-g','led-on-g'],r:['led-off-r','led-on-r'],a:['led-off-a','led-on-a'],c:['led-off-c','led-on-c']};
+  const [off,onCls]=map[colorKey];
+  el.className='led-dot '+(on?onCls:off);
+}
+
+function updateGripDiagram(){
+  const t=S.angles[5]/100;
+  const spread=t*40;
+  const llx1=80,lly1=45,llx2=55-spread,lly2=72;
+  const rlx1=140,rly1=45,rlx2=165+spread,rly2=72;
+  const lfl=document.getElementById('gd-ll');
+  const rfl=document.getElementById('gd-rl');
+  const lfb=document.getElementById('gd-lf');
+  const rfb=document.getElementById('gd-rf');
+  if(lfl){ lfl.setAttribute('x2',llx2); }
+  if(rfl){ rfl.setAttribute('x2',rlx2); }
+  if(lfb){ lfb.setAttribute('x',llx2-14); }
+  if(rfb){ rfb.setAttribute('x',rlx2-6); }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════════════════════
+function onSlider(idx,val){
+  if(!S.qnxConnected&&S.mode!=='rtos'){
+    S.targets[idx]=parseFloat(val);
+    autoSave();
+  }
+}
+
+function resetJoints(){
+  for(let i=0;i<6;i++){ S.targets[i]=0; const s=document.getElementById(`js${i}`); if(s) s.value=0; }
+}
+
+function homePose(){
+  const h=[0,25,-35,20,0,0];
+  h.forEach((v,i)=>{ S.targets[i]=v; const s=document.getElementById(`js${i}`); if(s) s.value=v; });
+}
+
+function setMode(m){
+  S.mode=m; S.nrJoint=0; S.nrTimer=0;
+  if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'set_mode',mode:m}));
+  log(`Mode set: ${m.toUpperCase()}`,'info');
+  autoSave();
+}
+
+function triggerEmergency(){
+  S.emergency=true;
+  if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'emergency'}));
+  log('⚠ EMERGENCY STOP triggered','err');
+}
+function setEmergencyFlag(){ S.emergency=true; log('⚠ NON-RTOS emergency — loop complete','warn'); }
+function clearEmergency(){
+  S.emergency=false;
+  _emCached=null; // Force color restore next frame
+  log('Emergency cleared — system re-armed','ok');
+}
+
+function toggleLoad(){
+  S.load=!S.load; log(`CPU load simulation ${S.load?'ON':'OFF'}`,S.load?'warn':'ok');
+}
+
+function toggleEdit(){
+  S.editMode=!S.editMode;
+  const btn=document.getElementById('btn-edit-toggle');
+  const strip=document.getElementById('edit-strip');
+  btn.className='tb-btn'+(S.editMode?' edit-active':'');
+  btn.textContent=S.editMode?'✏ EXIT EDIT':'✏ EDIT MODE';
+  strip.style.display=S.editMode?'flex':'none';
+
+  // Toggle body class so .edit-hide CSS works
+  document.body.classList.toggle('edit-mode', S.editMode);
+
+  // Panel visibility
+  document.getElementById('panel-left').classList.toggle('hidden', S.editMode);
+  document.getElementById('edit-panel-left').style.display = S.editMode?'block':'none';
+  document.getElementById('edit-coord-section').style.display = S.editMode?'block':'none';
+
+  // orbit stays enabled always; dragging-changed manages per-drag
+  orbit.enabled = true;
+
+  // Hide/show operational sections
+  const hideSections = ['panel-mode-section','panel-record-section','panel-status-section','panel-joint-section'];
+  hideSections.forEach(function(id){
+    const el=document.getElementById(id);
+    if(el) el.style.display = S.editMode ? 'none' : 'block';
+  });
+
+  if(!S.editMode){
+    transform.detach();
+    document.getElementById('edit-actuation-panel').style.display='none';
+    document.getElementById('axis-angle-overlay').innerHTML='';
+    document.getElementById('calib-menu').classList.remove('visible');
+    if(jointControlEditActive) toggleJointControlEdit();
+  } else {
+    buildEditSliders();
+  }
+  log(S.editMode?'Edit mode ON — click parts or use gizmo':'Edit mode OFF','warn');
+  if(S.editMode){
+    renderer.domElement.addEventListener('click',editClick);
+    strip.textContent='✏ EDIT MODE — Click a part to select';
+  } else {
+    renderer.domElement.removeEventListener('click',editClick);
+  }
+}
+
+// ── Joint Control Edit toggle ─────────────────────────────────────
+function toggleJointControlEdit(){
+  jointControlEditActive = !jointControlEditActive;
+  const btn = document.getElementById('jce-btn');
+  btn.classList.toggle('active', jointControlEditActive);
+  btn.textContent = jointControlEditActive ? '⚙ JOINT CTRL EDIT: ON' : '⚙ JOINT CTRL EDIT: OFF';
+  // Show calib menu only when on AND a part is selected
+  if(!jointControlEditActive){
+    document.getElementById('calib-menu').classList.remove('visible');
+  }
+  log('Joint Control Edit: ' + (jointControlEditActive?'ON (tree-move + SLERP cal)':'OFF'), 'warn');
+  if(jointControlEditActive) toast('JCE ON — select a part, move it, then Set 0°/90°/180° Pose');
+}
+
+// ── Calibration pose saving ───────────────────────────────────────
+function setCalibPose(slot){
+  if(!transform.object) { toast('Select a part first'); return; }
+  const obj = transform.object;
+  // Find which pivot this object belongs to
+  let targetPiv = null;
+  if(arm) arm.pivots.forEach(p => { if(p === obj || p.children.includes(obj)) targetPiv = p; });
+  if(!targetPiv) targetPiv = obj; // fallback: treat object itself as pivot
+
+  if(!calibrationData[targetPiv.uuid]) calibrationData[targetPiv.uuid] = { pivRef: targetPiv };
+  calibrationData[targetPiv.uuid][slot] = targetPiv.quaternion.clone();
+
+  const slotMap = { q0:'cpb-0', q90:'cpb-90', q180:'cpb-180' };
+  const classMap = { q0:'q0-set', q90:'q90-set', q180:'q180-set' };
+  const el = document.getElementById(slotMap[slot]);
+  if(el){ el.className='cpb '+classMap[slot]; }
+
+  toast('Saved ' + slot + ' pose for part');
+  log('Calibration ' + slot + ' saved','ok');
+  autoSave();
+}
+
+// ── Test calibration slider ───────────────────────────────────────
+function testCalibSlider(val){
+  document.getElementById('calib-test-val').textContent = val + '°';
+  if(!transform.object || !arm) return;
+  const obj = transform.object;
+  let targetPiv = null;
+  arm.pivots.forEach((p,i) => { if(p===obj || p.children.includes(obj)) targetPiv = p; });
+  if(!targetPiv) return;
+  const cd = calibrationData[targetPiv.uuid];
+  if(!cd || !cd.q0 || !cd.q90) { toast('Set 0° and 90° poses first'); return; }
+  const v = parseFloat(val);
+  const q = new THREE.Quaternion();
+  if(v <= 90){
+    const t = v / 90;
+    q.slerpQuaternions(cd.q0, cd.q90, t);
+  } else {
+    if(cd.q180){
+      const t = (v-90)/90;
+      q.slerpQuaternions(cd.q90, cd.q180, t);
+    } else {
+      const t = v/90;
+      q.slerpQuaternions(cd.q0, cd.q90, t);
+    }
+  }
+  targetPiv.quaternion.copy(q);
+}
+
+// ── Coord input (right panel manual transform input) ──────────────
+function updateCoordInputs(){
+  if(!transform.object) return;
+  const obj = transform.object;
+  const setV = (id, v) => { const el=document.getElementById(id); if(el && document.activeElement!==el) el.value=parseFloat(v.toFixed(3)); };
+  setV('ci-px', obj.position.x); setV('ci-py', obj.position.y); setV('ci-pz', obj.position.z);
+  const D = 180/Math.PI;
+  setV('ci-rx', obj.rotation.x*D); setV('ci-ry', obj.rotation.y*D); setV('ci-rz', obj.rotation.z*D);
+}
+
+function applyCoordInput(){
+  if(!transform.object || !S.editMode) return;
+  const obj = transform.object;
+  const R = Math.PI/180;
+  const gv = id => { const el=document.getElementById(id); return el ? parseFloat(el.value)||0 : 0; };
+  obj.position.set(gv('ci-px'), gv('ci-py'), gv('ci-pz'));
+  obj.rotation.set(gv('ci-rx')*R, gv('ci-ry')*R, gv('ci-rz')*R);
+  autoSave();
+}
+
+// ── Axis angle overlay rendering ──────────────────────────────────
+function updateAxisAngleOverlay(){
+  if(!S.editMode || !transform.object || !renderer) { return; }
+  const overlay = document.getElementById('axis-angle-overlay');
+  if(!overlay) return;
+
+  const obj = transform.object;
+  // Update coord inputs continuously
+  updateCoordInputs();
+
+  if(transform.mode !== 'rotate'){ overlay.innerHTML=''; return; }
+
+  const r = obj.rotation;
+  const D = 180/Math.PI;
+  const canvas = renderer.domElement;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+
+  // Project 3 axis tip positions to screen
+  const worldPos = new THREE.Vector3();
+  obj.getWorldPosition(worldPos);
+
+  const projectToScreen = (wx,wy,wz) => {
+    const v = new THREE.Vector4(wx,wy,wz,1);
+    v.applyMatrix4(camera.matrixWorldInverse);
+    v.applyMatrix4(camera.projectionMatrix);
+    if(v.w===0) return null;
+    return { x: (v.x/v.w+1)/2*W, y: (-v.y/v.w+1)/2*H };
+  };
+
+  const tipLen = 0.8;
+  const xTip = projectToScreen(worldPos.x+tipLen, worldPos.y, worldPos.z);
+  const yTip = projectToScreen(worldPos.x, worldPos.y+tipLen, worldPos.z);
+  const zTip = projectToScreen(worldPos.x, worldPos.y, worldPos.z+tipLen);
+
+  let html = '';
+  const mkLabel = (tip, cls, txt) => {
+    if(!tip) return '';
+    return `<div class="aal ${cls}" style="left:${tip.x}px;top:${tip.y}px">${txt}</div>`;
+  };
+  html += mkLabel(xTip, 'aal-x', `X: ${(r.x*D).toFixed(1)}°`);
+  html += mkLabel(yTip, 'aal-y', `Y: ${(r.y*D).toFixed(1)}°`);
+  html += mkLabel(zTip, 'aal-z', `Z: ${(r.z*D).toFixed(1)}°`);
+  overlay.innerHTML = html;
+}
+
+function editClick(e){
+  if(!S.editMode||!arm||_dragJustFinished) return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  const mouse=new THREE.Vector2(
+    ((e.clientX-rect.left)/rect.width)*2-1,
+   -((e.clientY-rect.top)/rect.height)*2+1
+  );
+  const ray=new THREE.Raycaster();
+  ray.setFromCamera(mouse,camera);
+  // Also include top-level scene meshes (like base), exclude floor/grid
+  const envNames=new Set(['floor','grid','ring']);
+  const allEditable = [...arm.allMeshes];
+  scene.traverse(function(o){
+    if(o.isMesh && !arm.allMeshes.includes(o) && !envNames.has(o.name)) allEditable.push(o);
+  });
+  const hits=ray.intersectObjects(allEditable,true);
+  if(hits.length>0){
+    let obj=hits[0].object;
+    // Walk up to mesh direct child of pivot, but keep kinematic hierarchy intact
+    while(obj.parent && obj.parent !== scene && !arm.pivots.includes(obj.parent)){
+      obj=obj.parent;
+    }
+    // If joint control edit is active, attach to the pivot group itself so children follow
+    if(jointControlEditActive){
+      const piv = arm.pivots.find(p => p === obj.parent || p === obj);
+      if(piv) { transform.attach(piv); obj = piv; }
+      else transform.attach(obj);
+    } else {
+      transform.attach(obj);
+    }
+    // Position gizmo at saved axis center for this part
+    _setGizmoAtAxisCenter(obj);
+    log('Selected part for edit','info');
+    document.getElementById('edit-actuation-panel').style.display='block';
+
+    // Find partId for display
+    let pid = null;
+    if(obj.userData && obj.userData.partId) pid = obj.userData.partId;
+    else obj.traverse(c => { if(!pid && c.userData && c.userData.partId) pid = c.userData.partId; });
+    document.getElementById('edit-act-name').textContent = pid || obj.name || 'Unknown';
+
+    // Update calibration menu
+    if(jointControlEditActive){
+      document.getElementById('calib-menu').classList.add('visible');
+      document.getElementById('calib-part-lbl').textContent = pid || obj.name || 'Unknown';
+      // Reflect which poses are set
+      const pivUUID = obj.uuid;
+      const cd = calibrationData[pivUUID] || {};
+      const s0  = document.getElementById('cpb-0');
+      const s90 = document.getElementById('cpb-90');
+      const s180= document.getElementById('cpb-180');
+      if(s0)   s0.className  = 'cpb' + (cd.q0   ? ' q0-set'  : '');
+      if(s90)  s90.className = 'cpb' + (cd.q90  ? ' q90-set' : '');
+      if(s180) s180.className= 'cpb' + (cd.q180 ? ' q180-set': '');
+    }
+
+    // Populate coord inputs
+    updateCoordInputs();
+  } else {
+    transform.detach();
+    document.getElementById('edit-actuation-panel').style.display='none';
+    document.getElementById('calib-menu').classList.remove('visible');
+    document.getElementById('axis-angle-overlay').innerHTML='';
+  }
+}
+
+function setActuationAxis(axis){
+  if(!transform.object) return;
+  let pid = null;
+  transform.object.traverse(c => { if(!pid && c.userData && c.userData.partId) pid = c.userData.partId; });
+  if(!pid) return;
+  if(!S.actuationAxes) S.actuationAxes = {};
+  S.actuationAxes[pid] = axis;
+  toast(`Actuation axis set to ${axis} for ${pid}`);
+  autoSave();
+}
+
+
+function runMode(){
+  if(S.mode==='nonrtos'){
+    if(S.sequence.length===0){ toast('No sequence recorded. Use 📌 Record first.'); return; }
+    S.replaying=true; S.repIdx=0; S.repFrame=0;
+    S.targets=[...S.sequence[0]];
+    log('NON-RTOS simulation started','warn');
+    toast('NON-RTOS mode running — watch for jitter');
+  } else if(S.mode==='rtos'){
+    if(S.sequence.length===0){ toast('No sequence to send. Record poses first.'); return; }
+    sendToQNX();
+    S.replaying=true; S.repIdx=0; S.repFrame=0;
+    log('RTOS mode — sequence sent to QNX','ok');
+    toast('RTOS sequence sent to QNX — live angles incoming');
+  } else {
+    toast('Set mode to RTOS or NON-RTOS first');
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  TEACH & RECORD
+// ═══════════════════════════════════════════════════════════════════
+function recordPose(){
+  const pose=[...S.angles];
+  S.sequence.push(pose);
+  const n=S.sequence.length;
+  const list=document.getElementById('seq-list');
+  const row=document.createElement('div');
+  row.className='seq-item';
+  row.dataset.idx=n-1;
+  row.innerHTML=`<span class="seq-num">#${String(n).padStart(2,'0')}</span>`+
+    pose.map((v,i)=>i===5 ? `<span style="color:${JOINTS[i].col}">${v.toFixed(0)}%</span>` : `<span style="color:${JOINTS[i].col}">${v>=0?'+':''}${v.toFixed(0)}°</span>`).join(' ');
+  row.onclick=()=>{ S.targets=[...S.sequence[+row.dataset.idx]]; };
+  list.appendChild(row);
+  log(`Pose #${n} recorded`,'ok');
+  document.getElementById('t-seq').textContent=S.sequence.length;
+  autoSave();
+}
+
+function stopReplay(){ S.replaying=false; log('Replay stopped','warn'); }
+
+function clearSeq(){
+  S.sequence=[]; S.replaying=false;
+  document.getElementById('seq-list').innerHTML='';
+  document.getElementById('t-seq').textContent='0';
+  log('Sequence cleared','warn');
+  autoSave();
+}
+
+function sendToQNX(){
+  if(!ws||ws.readyState!==1){ toast('Bridge not connected — start bridge.py first'); return; }
+  if(S.sequence.length===0){ toast('No poses recorded'); return; }
+  ws.send(JSON.stringify({type:'send_sequence',sequence:S.sequence}));
+  log(`Sending ${S.sequence.length} poses to QNX…`,'ok');
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════
+let ws=null;
+function connectWS(){
+  log('Connecting to bridge.py…','warn');
+  ws=new WebSocket('ws://localhost:8765');
+  ws.onopen=()=>{
+    document.getElementById('ws-dot').className='dot on';
+    document.getElementById('ws-lbl').textContent='ONLINE';
+    log('WebSocket bridge connected','ok');
+    toast('Bridge connected — start QNX to go live');
+  };
+  ws.onclose=()=>{
+    document.getElementById('ws-dot').className='dot warn';
+    document.getElementById('ws-lbl').textContent='OFFLINE';
+    log('Bridge disconnected. Retry in 3s…','err');
+    setTimeout(connectWS,3000);
+  };
+  ws.onerror=()=>log('WS error — is bridge.py running?','err');
+  ws.onmessage=e=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==='init'||msg.type==='angles'){
+      if(!S.emergency){ S.targets=msg.angles; }
+      if(msg.packets!=null) S.packets=msg.packets;
+    }
+    if(msg.type==='emergency'){ S.emergency=true; log('EMERGENCY from QNX!','err'); }
+    if(msg.type==='qnx_status'){
+      S.qnxConnected=msg.connected;
+      log(msg.connected?`QNX connected ← ${msg.addr}`:'QNX disconnected',msg.connected?'ok':'warn');
+      if(msg.connected) toast(`QNX connected: ${msg.addr}`);
+    }
+    if(msg.type==='seq_ack'){ log(msg.msg,'ok'); toast(msg.msg); }
+  };
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function log(msg,type=''){
+  const box=document.getElementById('log-box');
+  if(!box) return;
+  const d=document.createElement('div');
+  const ts=new Date().toLocaleTimeString('en-GB',{hour12:false});
+  d.className=`log-${type}`;
+  d.textContent=`[${ts}] ${msg}`;
+  box.appendChild(d);
+  box.scrollTop=box.scrollHeight;
+  while(box.children.length>50) box.removeChild(box.firstChild);
+}
+
+let _toastTimer=null;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PROJECT PERSISTENCE — IndexedDB
+// ═══════════════════════════════════════════════════════════════════
+let currentProjectId = null;
+
+const ProjectDB = {
+  DB_NAME:'MATRIX_DB', DB_VER:3, db:null,
+
+  async init(){
+    return new Promise((res,rej)=>{
+      const req=indexedDB.open(this.DB_NAME,this.DB_VER);
+      req.onupgradeneeded=e=>{
+        const db=e.target.result;
+        if(!db.objectStoreNames.contains('projects')) db.createObjectStore('projects',{keyPath:'id'});
+        if(!db.objectStoreNames.contains('files'))    db.createObjectStore('files',{keyPath:'key'});
+      };
+      req.onsuccess=e=>{this.db=e.target.result;res()};
+      req.onerror=e=>rej(e.target.error);
+    });
+  },
+
+  _tx(store,mode,fn){
+    return new Promise((res,rej)=>{
+      const tx=this.db.transaction(store,mode);
+      const st=tx.objectStore(store);
+      const req=fn(st);
+      if(req){req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);}
+      else{tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);}
+    });
+  },
+
+  loadAll(){ return this._tx('projects','readonly',s=>s.getAll()); },
+  loadProject(id){ return this._tx('projects','readonly',s=>s.get(id)); },
+  saveProject(data){ return this._tx('projects','readwrite',s=>s.put(data)); },
+
+  async deleteProject(id){
+    await this._tx('projects','readwrite',s=>s.delete(id));
+    const all=await new Promise((res,rej)=>{
+      const tx=this.db.transaction('files','readwrite');
+      const req=tx.objectStore('files').getAll();
+      req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
+    });
+    for(const f of all.filter(f=>f.key.startsWith(id+'::'))){
+      await this._tx('files','readwrite',s=>s.delete(f.key));
+    }
+  },
+
+  async saveFilesForProject(id,filesObj,quantitiesObj){
+    for(const [name,file] of Object.entries(filesObj)){
+      const buf=await file.arrayBuffer();
+      await this._tx('files','readwrite',s=>s.put({key:id+'::'+name,name,type:file.type||'',qty:quantitiesObj[name]||1,buf}));
+    }
+    // Update fileCount on project
+    const proj=await this.loadProject(id)||{id};
+    proj.fileCount=Object.keys(filesObj).length;
+    await this.saveProject(proj);
+  },
+
+  async loadFilesForProject(id){
+    const all=await new Promise((res,rej)=>{
+      const tx=this.db.transaction('files','readonly');
+      const req=tx.objectStore('files').getAll();
+      req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
+    });
+    return all.filter(f=>f.key.startsWith(id+'::'));
+  }
+};
+
+// ─── Auto-save (debounced 1.5 s) ───────────────────────────────
+let _saveTimer=null;
+function autoSave(){
+  if(!currentProjectId) return;
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async()=>{
+    const transforms=[];
+    if(arm){
+      arm.pivots.forEach(piv => {
+        piv.children.forEach(child => {
+          if(child.userData && child.userData.partId){
+            transforms.push({
+              partId: child.userData.partId,
+              pos: [child.position.x, child.position.y, child.position.z],
+              rot: [child.rotation.x, child.rotation.y, child.rotation.z]
+            });
+          }
+        });
+      });
+    }
+    // Also capture Static_Base and any scene-level meshes not inside pivots
+    if(scene){
+      scene.traverse(function(obj){
+        if(obj.userData && obj.userData.partId && !transforms.find(function(t){return t.partId===obj.userData.partId;})){
+          transforms.push({
+            partId: obj.userData.partId,
+            pos: [obj.position.x, obj.position.y, obj.position.z],
+            rot: [obj.rotation.x, obj.rotation.y, obj.rotation.z]
+          });
+        }
+      });
+    }
+    const camData=camera?{pos:[camera.position.x,camera.position.y,camera.position.z],
+      target:[orbit.target.x,orbit.target.y,orbit.target.z]}:null;
+    const existing=await ProjectDB.loadProject(currentProjectId)||{};
+
+    // Serialize calibrationData (quaternions → arrays)
+    const calibSerial = {};
+    for(const [uuid, cd] of Object.entries(calibrationData)){
+      calibSerial[uuid] = {};
+      ['q0','q90','q180'].forEach(slot => {
+        if(cd[slot]) calibSerial[uuid][slot] = [cd[slot].x, cd[slot].y, cd[slot].z, cd[slot].w];
+      });
+    }
+
+    await ProjectDB.saveProject({...existing,id:currentProjectId,lastSaved:new Date().toISOString(),
+      transforms,jointAngles:[...S.angles],jointTargets:[...S.targets],
+      sequences:S.sequence.map(p=>[...p]),mode:S.mode,camera:camData, axisOffsets:S.axisOffsets, actuationAxes:S.actuationAxes, calibrationData:calibSerial});
+    flashSaveIndicator();
+  },1500);
+}
+
+let _siTimer=null;
+function flashSaveIndicator(){
+  const el=document.getElementById('save-indicator');
+  el.classList.add('show'); clearTimeout(_siTimer);
+  _siTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ─── Restore state after arm is built ──────────────────────────
+async function restoreProjectState(){
+  if(!currentProjectId) return;
+  const proj=await ProjectDB.loadProject(currentProjectId);
+  if(!proj) return;
+  if(proj.jointAngles){ S.angles=[...proj.jointAngles]; S.targets=[...(proj.jointTargets||proj.jointAngles)]; }
+  if(proj.mode) S.mode=proj.mode;
+  if(proj.axisOffsets) S.axisOffsets = proj.axisOffsets;
+  if(proj.actuationAxes) S.actuationAxes = proj.actuationAxes;
+
+  // Restore calibration data (quaternion arrays → THREE.Quaternion)
+  if(proj.calibrationData && arm){
+    for(const [uuid, cd] of Object.entries(proj.calibrationData)){
+      calibrationData[uuid] = {};
+      ['q0','q90','q180'].forEach(slot => {
+        if(cd[slot]) {
+          const [x,y,z,w] = cd[slot];
+          calibrationData[uuid][slot] = new THREE.Quaternion(x,y,z,w);
+          // Try to re-link pivRef
+          arm.pivots.forEach(p => { if(p.uuid === uuid) calibrationData[uuid].pivRef = p; });
+        }
+      });
+    }
+  }
+  S.targets.forEach((v,i)=>{ const sl=document.getElementById(`js${i}`); if(sl) sl.value=v; });
+  
+  if(proj.transforms){
+    S.savedTransforms = proj.transforms;
+    const applyT = obj => {
+      if(obj.userData && obj.userData.partId){
+        const t = S.savedTransforms.find(x=>x.partId===obj.userData.partId);
+        if(t){ obj.position.set(...t.pos); obj.rotation.set(...t.rot); }
+      }
+    };
+    if(arm){
+      arm.pivots.forEach(piv=>piv.children.forEach(applyT));
+    }
+    if(scene) scene.traverse(applyT);
+  }
+
+  if(proj.camera&&camera){ camera.position.set(...proj.camera.pos); if(orbit) orbit.target.set(...proj.camera.target); }
+  if(proj.sequences&&proj.sequences.length>0){
+    S.sequence=proj.sequences.map(p=>[...p]);
+    const list=document.getElementById('seq-list'); list.innerHTML='';
+    S.sequence.forEach((pose,n)=>{
+      const row=document.createElement('div'); row.className='seq-item'; row.dataset.idx=n;
+      row.innerHTML=`<span class="seq-num">#${String(n+1).padStart(2,'0')}</span>`+
+        pose.map((v,i)=>i===5?`<span style="color:${JOINTS[i].col}">${v.toFixed(0)}%</span>`
+          :`<span style="color:${JOINTS[i].col}">${v>=0?'+':''}${v.toFixed(0)}°</span>`).join(' ');
+      row.onclick=()=>{S.targets=[...S.sequence[+row.dataset.idx]];};
+      list.appendChild(row);
+    });
+    document.getElementById('t-seq').textContent=S.sequence.length;
+  }
+  log(`✔ Project "${proj.name}" fully restored`,'ok');
+  toast(`Restored: ${proj.name}`);
+}
+
+// ─── Project Hub UI ────────────────────────────────────────────
+async function showProjectHub(){
+  await ProjectDB.init();
+  document.getElementById('loading').style.opacity='0';
+  document.getElementById('loading').style.transition='opacity .4s';
+  setTimeout(()=>{ document.getElementById('loading').style.display='none'; document.getElementById('project-hub').style.display='flex'; },400);
+  await renderProjectCards();
+}
+
+async function renderProjectCards(){
+  const projects=await ProjectDB.loadAll();
+  const grid=document.getElementById('proj-grid');
+  if(!projects||projects.length===0){
+    grid.innerHTML='<div class="hub-empty"><span>🤖</span>No projects yet.<br>Click \"+ New Project\" to begin.</div>'; return;
+  }
+  projects.sort((a,b)=>new Date(b.lastSaved||b.createdAt)-new Date(a.lastSaved||a.createdAt));
+  grid.innerHTML='';
+  projects.forEach(p=>{
+    const d=new Date(p.lastSaved||p.createdAt);
+    const dateStr=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    const card=document.createElement('div'); card.className='proj-card';
+    card.innerHTML=`
+      <div class="proj-card-name-wrap">
+        <div class="proj-card-name" style="flex:1">${p.name||'Unnamed'}</div>
+        <button class="proj-rename-btn" onclick="openRenameDialog('${p.id}','${(p.name||'').replace(/'/g,"\\'")}',event)">✏ RENAME</button>
+      </div>
+      <div class="proj-card-meta"><span>${dateStr}</span>
+        ${p.fileCount?`<span class="proj-card-badge">${p.fileCount} FILES</span>`:''}
+        ${(p.sequences||[]).length?`<span class="proj-card-badge">${p.sequences.length} POSES</span>`:''}
+      </div>
+      <div class="proj-card-actions">
+        <button class="btn primary" style="flex:1;font-size:10px" onclick="openProject('${p.id}')">▶ OPEN</button>
+        <button class="btn danger" style="flex:none;padding:7px 10px" onclick="deleteProjectConfirm('${p.id}',event)">🗑</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function openNewProjectDialog(){
+  document.getElementById('proj-dialog').style.display='flex';
+  setTimeout(()=>document.getElementById('proj-name-input').focus(),80);
+}
+function closeDialog(){
+  document.getElementById('proj-dialog').style.display='none';
+  document.getElementById('proj-name-input').value='';
+}
+
+// ── Rename project ─────────────────────────────────────────────
+function openRenameDialog(id, currentName, e){
+  e.stopPropagation();
+  _renameTargetId = id;
+  const inp = document.getElementById('rename-input');
+  inp.value = currentName || '';
+  document.getElementById('rename-dialog').style.display='flex';
+  setTimeout(()=>inp.focus(), 80);
+}
+function closeRenameDialog(){
+  document.getElementById('rename-dialog').style.display='none';
+  _renameTargetId = null;
+}
+async function confirmRename(){
+  const name = document.getElementById('rename-input').value.trim();
+  if(!name || !_renameTargetId){ document.getElementById('rename-input').style.borderColor='var(--red)'; return; }
+  const proj = await ProjectDB.loadProject(_renameTargetId) || { id: _renameTargetId };
+  proj.name = name;
+  await ProjectDB.saveProject(proj);
+  closeRenameDialog();
+  await renderProjectCards();
+  // Update topbar if this is open project
+  if(currentProjectId === _renameTargetId){
+    const tbName = document.getElementById('tb-proj-name');
+    if(tbName) tbName.textContent = name.toUpperCase();
+  }
+  toast(`Renamed to: ${name}`);
+}
+async function createProject(){
+  const name=document.getElementById('proj-name-input').value.trim();
+  if(!name){ document.getElementById('proj-name-input').style.borderColor='var(--red)'; return; }
+  const id='p'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  await ProjectDB.saveProject({id,name,createdAt:new Date().toISOString(),lastSaved:new Date().toISOString(),
+    fileCount:0,transforms:[],jointAngles:[90,90,90,90,90,0],jointTargets:[90,90,90,90,90,0],sequences:[],mode:'manual',camera:null,axisOffsets:{},actuationAxes:{},calibrationData:{}});
+  currentProjectId=id;
+  closeDialog();
+  document.getElementById('project-hub').style.display='none';
+  document.querySelector('.upload-header .logo span') && (document.querySelector('.upload-header .logo span').textContent=name.toUpperCase()+' — LOAD 3D MODELS');
+  showUpload();
+}
+async function openProject(id){
+  currentProjectId=id;
+  const proj=await ProjectDB.loadProject(id);
+  if(proj && proj.name) {
+     const tbName = document.getElementById('tb-proj-name');
+     if(tbName) tbName.textContent = proj.name.toUpperCase();
+     document.querySelector('.upload-header .logo span') && (document.querySelector('.upload-header .logo span').textContent=proj.name.toUpperCase()+' — LOAD 3D MODELS');
+  }
+  const storedFiles=await ProjectDB.loadFilesForProject(id);
+  if(storedFiles&&storedFiles.length>0){
+    for(const sf of storedFiles){
+      const blob=new Blob([sf.buf],{type:sf.type||'application/octet-stream'});
+      uploadedFiles[sf.name]=new File([blob],sf.name,{type:sf.type||''});
+      quantities[sf.name]=sf.qty||1;
+    }
+    document.getElementById('project-hub').style.display='none';
+    document.getElementById('main').style.display='flex';
+    // If dashboard already initialized, just rebuild the arm and restore
+    if(renderer && scene){
+      // Remove old arm groups
+      ['Static_Base','J0_Base','J1_Shoulder','J2_Elbow','J3_WristPitch','J4_WristRoll',
+       'Gripper_Root','Left_Gear_Pivot','Right_Gear_Pivot','Left_Jaw_Pivot','Right_Jaw_Pivot'
+      ].forEach(function(n){ const o=scene.getObjectByName(n); if(o) scene.remove(o); });
+      arm = buildArm();
+      buildSliders();
+      setTimeout(restoreProjectState, 800);
+    } else {
+      initDashboard();
+      setTimeout(restoreProjectState, 1400);
+    }
+  } else {
+    const proj=await ProjectDB.loadProject(id);
+    document.getElementById('project-hub').style.display='none';
+    showUpload();
+    toast(`"${proj&&proj.name}" — upload models to continue`);
+  }
+}
+async function deleteProjectConfirm(id,e){
+  e.stopPropagation();
+  if(!confirm('Delete this project? This cannot be undone.')) return;
+  await ProjectDB.deleteProject(id);
+  await renderProjectCards();
+}
+function showUpload(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('upload-screen').style.display='flex';
+  initPreviewRenderer();
+}
+</script>
+</body>
+</html>
